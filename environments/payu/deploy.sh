@@ -1,7 +1,7 @@
 ### Update stable/unstable if necessary
-CURRENT_STABLE=$( get_aliased_module "${MODULE_NAME}"/analysis "${CONDA_MODULE_PATH}" )
+CURRENT_STABLE=$( get_aliased_module "${MODULE_NAME}"/payu "${CONDA_MODULE_PATH}" )
 NEXT_STABLE="${ENVIRONMENT}-${STABLE_VERSION}"
-CURRENT_UNSTABLE=$( get_aliased_module "${MODULE_NAME}"/analysis3-unstable "${CONDA_MODULE_PATH}" )
+CURRENT_UNSTABLE=$( get_aliased_module "${MODULE_NAME}"/payu-unstable "${CONDA_MODULE_PATH}" )
 NEXT_UNSTABLE="${ENVIRONMENT}-${UNSTABLE_VERSION}"
 
 if ! [[ "${CURRENT_STABLE}" == "${MODULE_NAME}/${NEXT_STABLE}" ]]; then

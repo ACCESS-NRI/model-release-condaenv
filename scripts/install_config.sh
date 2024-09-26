@@ -1,14 +1,16 @@
 ### Settings to control installation path e.g. for test installs
-export CONDA_BASE="${CONDA_BASE:-/g/data/hh5/public}"
-export ADMIN_DIR="${ADMIN_DIR:-/g/data/hh5/admin/conda_concept/admin}"
+### TODO: Replace /scratch/tm70/tm70_ci/tmp/test_squashfs_conda/base with /g/data/vk83
+### TODO: Replace ADMIN_DIR
+export CONDA_BASE="${CONDA_BASE:-/scratch/tm70/tm70_ci/tmp/test_squashfs_conda/base}"
+export ADMIN_DIR="${ADMIN_DIR:-/scratch/tm70/tm70_ci/tmp/test_squashfs_conda/admin}"
 export CONDA_TEMP_PATH="${PBS_JOBFS:-${CONDA_TEMP_PATH}}"
 export SCRIPT_DIR="${SCRIPT_DIR:-$PWD}"
 
-export SCRIPT_SUBDIR="apps/cms_conda_scripts"
+export SCRIPT_SUBDIR="apps/conda_scripts"
 export MODULE_SUBDIR="modules"
 export APPS_SUBDIR="apps"
-export CONDA_INSTALL_BASENAME="cms_conda"
-export MODULE_NAME="conda_concept"
+export CONDA_INSTALL_BASENAME="model-release-conda" #TODO: CHANGE
+export MODULE_NAME="conda"
 
 ### Derived locations - extra '.' for arcane rsync magic
 export CONDA_SCRIPT_PATH="${CONDA_BASE}"/./"${SCRIPT_SUBDIR}"
@@ -17,8 +19,9 @@ export JOB_LOG_DIR="${ADMIN_DIR}"/logs
 export BUILD_STAGE_DIR="${ADMIN_DIR}"/staging
 
 ### Groups
-export APPS_USERS_GROUP=hh5
-export APPS_OWNERS_GROUP=hh5_w
+# TODO: Replace tm70 with vk83? vk83_w?
+export APPS_USERS_GROUP=tm70
+export APPS_OWNERS_GROUP=tm70
 
 ### Other settings
 export TEST_OUT_FILE=test_results.xml
