@@ -9,16 +9,24 @@ jobs:
   deploy:
     name: Deploy environment
     runs-on: ubuntu-latest
+    environment: Gadi
     steps:
-      - name: Deploy environment
-        uses: appleboy/ssh-action@v0.1.7
+      - name: Setup SSH
+        uses: access-nri/actions/.github/actions/setup-ssh@main
+        id: ssh
         with:
-          host: gadi.nci.org.au
-          username: ${{secrets.GADI_USER}}
-          key: ${{secrets.DEPLOY_KEY}}
-          script: |
-            export SCRIPT_DIR=${{secrets.GADI_REPO_PATH}}/scripts
-            export CONDA_ENVIRONMENT=${{ inputs.environment }}
-            eval $( grep ADMIN_DIR $SCRIPT_DIR/install_config.sh )
-            eval $( grep BUILD_STAGE_DIR $SCRIPT_DIR/install_config.sh )
-            "${SCRIPT_DIR}"/deploy.sh
+          hosts: ${{ secrets.HOST }}
+          private-key: ${{ secrets.SSH_KEY }}
+
+      - name: Deploy environment
+        run: |
+          ssh ${{ secrets.USER }}@${{ secrets.HOST }} -i ${{ steps.ssh.outputs.private-key-path }} /bin/bash <<'EOT'
+
+          export SCRIPT_DIR=${{ secrets.REPO_PATH }}/scripts
+          export CONDA_ENVIRONMENT=${{ inputs.environment }}
+
+          source $SCRIPT_DIR/install_config.sh
+
+          "${SCRIPT_DIR}"/deploy.sh
+
+          EOT

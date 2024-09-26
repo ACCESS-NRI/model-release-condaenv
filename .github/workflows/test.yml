@@ -9,17 +9,29 @@ jobs:
   test:
     name: Test environment
     runs-on: ubuntu-latest
+    environment: Gadi
     steps:
-      - name: Test environment
-        uses: appleboy/ssh-action@v0.1.7
+      - name: Setup SSH
+        uses: access-nri/actions/.github/actions/setup-ssh@main
+        id: ssh
         with:
-          host: gadi.nci.org.au
-          username: ${{secrets.GADI_USER}}
-          key: ${{secrets.DEPLOY_KEY}}
-          script: |
-            export SCRIPT_DIR=${{secrets.GADI_REPO_PATH}}/scripts
-            eval $( grep ADMIN_DIR $SCRIPT_DIR/install_config.sh )
-            eval $( grep JOB_LOG_DIR $SCRIPT_DIR/install_config.sh )
-            cd $JOB_LOG_DIR
-            # TODO: Update storage flags?
-            qsub -N test_${{ inputs.environment }} -lncpus=4,mem=20GB,walltime=0:20:00,jobfs=50GB,storage=scratch/tm70 -v SCRIPT_DIR,CONDA_ENVIRONMENT=${{ inputs.environment }} -P tm70 -Wblock=true -Wumask=037 "${SCRIPT_DIR}"/test.sh
+          hosts: ${{ secrets.HOST }}
+          private-key: ${{ secrets.SSH_KEY }}
+
+      - name: Test environment
+        run: |
+          ssh ${{ secrets.USER }}@${{ secrets.HOST }} -i ${{ steps.ssh.outputs.private-key-path }} /bin/bash <<'EOT'
+
+          export SCRIPT_DIR=${{secrets.REPO_PATH}}/scripts
+          source $SCRIPT_DIR/install_config.sh
+
+          cd $JOB_LOG_DIR
+          if [ $? -ne 0 ]; then
+            echo "::error::Failed to change to log directory: $JOB_LOG_DIR"
+            exit 1
+          fi
+
+          # TODO: Update storage flags?
+          qsub -N test_${{ inputs.environment }} -lncpus=4,mem=20GB,walltime=0:20:00,jobfs=50GB,storage=scratch/tm70 -v SCRIPT_DIR,CONDA_ENVIRONMENT=${{ inputs.environment }} -P tm70 -Wblock=true -Wumask=037 "${SCRIPT_DIR}"/test.sh
+
+          EOT

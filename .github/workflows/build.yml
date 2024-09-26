@@ -9,18 +9,28 @@ jobs:
   build:
     name: Build environment
     runs-on: ubuntu-latest
+    environment: Gadi
     steps:
-      - name: Build environment
-        uses: appleboy/ssh-action@v0.1.7
+      - name: Setup SSH
+        uses: access-nri/actions/.github/actions/setup-ssh@main
+        id: ssh
         with:
-          host: gadi.nci.org.au
-          username: ${{secrets.GADI_USER}}
-          key: ${{secrets.DEPLOY_KEY}}
-          command_timeout: 120m
-          script: |
-            export SCRIPT_DIR=${{secrets.GADI_REPO_PATH}}/scripts
-            eval $( grep ADMIN_DIR $SCRIPT_DIR/install_config.sh )
-            eval $( grep JOB_LOG_DIR $SCRIPT_DIR/install_config.sh )
-            cd $JOB_LOG_DIR
-            # TODO: Replace with gdata/vk83
-            qsub -N build_${{ inputs.environment }} -lncpus=1,mem=20GB,walltime=2:00:00,jobfs=50GB,storage=scratch/tm70 -v SCRIPT_DIR,CONDA_ENVIRONMENT=${{ inputs.environment }} -P tm70 -q copyq -Wblock=true -Wumask=037 "${SCRIPT_DIR}"/build.sh
+          hosts: ${{ secrets.HOST }}
+          private-key: ${{ secrets.SSH_KEY }}
+
+      - name: Build environment
+        run: |
+          ssh ${{ secrets.USER }}@${{ secrets.HOST }} -i ${{ steps.ssh.outputs.private-key-path }} /bin/bash <<'EOT'
+
+          export SCRIPT_DIR=${{secrets.REPO_PATH}}/scripts
+          source $SCRIPT_DIR/install_config.sh
+
+          cd $JOB_LOG_DIR
+          if [ $? -ne 0 ]; then
+            echo "::error::Failed to change to log directory: $JOB_LOG_DIR"
+            exit 1
+          fi
+          # TODO: Replace with gdata/vk83
+          qsub -N build_${{ inputs.environment }} -lncpus=1,mem=20GB,walltime=2:00:00,jobfs=50GB,storage=scratch/tm70 -v SCRIPT_DIR,CONDA_ENVIRONMENT=${{ inputs.environment }} -P tm70 -q copyq -Wblock=true -Wumask=037 "${SCRIPT_DIR}"/build.sh
+
+          EOT

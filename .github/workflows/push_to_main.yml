@@ -8,19 +8,26 @@ jobs:
 
   setup:
     runs-on: ubuntu-latest
+    environment: Gadi
     steps:
       - name: Checkout repository
         ### Latest at time of writing
         uses: actions/checkout@v4
+
+      - name: Setup SSH
+        uses: access-nri/actions/.github/actions/setup-ssh@main
+        id: ssh
+        with:
+          hosts: ${{ secrets.HOST_DATA }}
+          private-key: ${{ secrets.SSH_KEY }}
+
       - name: Sync repository to Gadi
-        ### Latest at time of writing
-        uses: up9cloud/action-rsync@v1.3
-        env:
-          HOST: gadi.nci.org.au
-          TARGET: ${{secrets.GADI_REPO_PATH}}
-          KEY: ${{secrets.DEPLOY_KEY}}
-          USER: ${{secrets.GADI_USER}}
-  
+        run: |
+          rsync -e 'ssh -i ${{ steps.ssh.outputs.private-key-path }}' \
+            -avz --delete --exclude=/.git/ --exclude=/.github/ \
+            ./ \
+            ${{ secrets.USER }}@${{ secrets.HOST_DATA }}:${{ secrets.REPO_PATH }}
+
   deploy:
     needs: [ generate_matrix, setup ]
     uses: ./.github/workflows/deploy.yml

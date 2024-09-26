@@ -1,6 +1,5 @@
 ### Settings to control installation path e.g. for test installs
 ### TODO: Replace /scratch/tm70/tm70_ci/tmp/test_squashfs_conda/base with /g/data/vk83
-### TODO: Replace ADMIN_DIR
 export CONDA_BASE="${CONDA_BASE:-/scratch/tm70/tm70_ci/tmp/test_squashfs_conda/base}"
 export ADMIN_DIR="${ADMIN_DIR:-/scratch/tm70/tm70_ci/tmp/test_squashfs_conda/admin}"
 export CONDA_TEMP_PATH="${PBS_JOBFS:-${CONDA_TEMP_PATH}}"

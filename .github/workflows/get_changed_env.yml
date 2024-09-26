@@ -32,7 +32,7 @@ jobs:
           for line in $DIFF; do
             if [[ $line =~ environments ]]; then
                 env_name=$( basename ${line%/*} )
-                if ! [[ $json =~ $env_name ]]; then
+                if ! [[ $json =~ $env_name ]] && [ -d "environments/$env_name" ]; then
                     json="$json{\"environment\":\"$env_name\"},"
                 fi
             fi
