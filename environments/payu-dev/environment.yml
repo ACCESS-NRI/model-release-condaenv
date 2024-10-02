@@ -1,0 +1,19 @@
+name: payu-dev
+channels:
+  - accessnri
+  - coecms
+  - conda-forge
+dependencies:
+  - python==3.10
+  # Use latest changes from payu's master branch
+  - pip:
+    - git+https://github.com/payu-org/payu.git@master
+  - f90nml
+  - gh
+  - git
+  - nco
+  - pytest
+  - openssh>=8.3
+  - xarray
+  - mule
+  - um2nc
