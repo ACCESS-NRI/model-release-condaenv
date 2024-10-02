@@ -13,11 +13,11 @@ export STABLE_VERSION=1.1.5
 export UNSTABLE_VERSION=1.1.5
 
 ### Version settings
-export ENVIRONMENT=analysis3
+export ENVIRONMENT=payu
 export FULLENV="${ENVIRONMENT}-${VERSION_TO_MODIFY}"
 
-declare -a rpms_to_remove=( "openssh-clients" "openssh-server" "openssh" )
-declare -a replace_from_apps=( "ucx/1.15.0" )
-declare -a outside_commands_to_include=( "pbs_tmrsh" "ssh" )
+declare -a rpms_to_remove=()
+declare -a replace_from_apps=()
+declare -a outside_commands_to_include=()
 declare -a outside_files_to_copy=()
 declare -a replace_with_external=()
