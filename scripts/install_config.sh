@@ -1,6 +1,13 @@
 ### Settings to control installation path e.g. for test installs
-export CONDA_BASE="${CONDA_BASE:-/g/data/vk83/prerelease}" #TODO: Remove prerelease
-export ADMIN_DIR="${ADMIN_DIR:-/g/data/vk83/admin/conda_concept}"
+if [[ ! "${CONDA_BASE}" ]]; then
+    echo "Error! CONDA_BASE must be defined"
+    exit 1
+fi
+if [[ ! "${ADMIN_DIR}" ]]; then
+    echo "Error! ADMIN_DIR must be defined"
+    exit 1
+fi
+
 export CONDA_TEMP_PATH="${PBS_JOBFS:-${CONDA_TEMP_PATH}}"
 export SCRIPT_DIR="${SCRIPT_DIR:-$PWD}"
 
@@ -8,7 +15,7 @@ export SCRIPT_SUBDIR="apps/conda_scripts"
 export MODULE_SUBDIR="modules"
 export APPS_SUBDIR="apps"
 export CONDA_INSTALL_BASENAME="base_conda" #TODO: Replace with conda?
-export MODULE_NAME="conda_concept" # TODO: Replace with conda?
+export MODULE_NAME="conda_container" # TODO: Replace with conda?
 
 ### Derived locations - extra '.' for arcane rsync magic
 export CONDA_SCRIPT_PATH="${CONDA_BASE}"/./"${SCRIPT_SUBDIR}"
@@ -17,9 +24,14 @@ export JOB_LOG_DIR="${ADMIN_DIR}"/logs
 export BUILD_STAGE_DIR="${ADMIN_DIR}"/staging
 
 ### Groups
-# TODO: Replace tm70 with vk83? vk83_w?
-export APPS_USERS_GROUP=tm70
-export APPS_OWNERS_GROUP=tm70
+if [[ ! "${APPS_USERS_GROUP}" ]]; then
+    echo "Error! APPS_USERS_GROUP must be defined"
+    exit 1
+fi
+if [[ ! "${APPS_OWNERS_GROUP}" ]]; then
+    echo "Error! APPS_OWNERS_GROUP must be defined"
+    exit 1
+fi
 
 ### Other settings
 export TEST_OUT_FILE=test_results.xml

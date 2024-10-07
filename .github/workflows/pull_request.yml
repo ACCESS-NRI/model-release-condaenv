@@ -47,6 +47,43 @@ jobs:
     if: ${{ needs.generate_matrix.outputs.matrix != '{"include":[]}' }}
     environment: Gadi
     steps:
+      - name: Check Gadi Github Environment configuration
+        run: |
+          vars_unset=false
+          if [ -z "${{ vars.ADMIN_DIR }}" ]; then
+            echo "::error::vars.ADMIN_DIR is unset. ADMIN_DIR is the base directory which will contain the staging and logs sub-directories"
+            vars_unset=true
+          fi
+          if [ -z "${{ vars.CONDA_BASE }}" ]; then
+            echo "::error::vars.CONDA_BASE is unset. CONDA_BASE is the base deployment directory which will contain apps and module sub-directories"
+            vars_unset=true
+          fi
+          if [ -z "${{ vars.PROJECT }}" ]; then
+            echo "::error::vars.PROJECT is unset. PROJECT is the project code passed to build+test qsub calls"
+            vars_unset=true
+          fi
+          if [ -z "${{ vars.STORAGE }}" ]; then
+            echo "::error::vars.STORAGE is unset. STORAGE is the storage flags passed to build+test qsub calls"
+            vars_unset=true
+          fi
+          if [ -z "${{ vars.APPS_USERS_GROUP }}" ]; then
+            echo "::error::vars.APPS_USERS_GROUP is unset. APPS_USERS_GROUP is used for setting file permissions"
+            vars_unset=true
+          fi
+          if [ -z "${{ vars.APPS_OWNERS_GROUP }}" ]; then
+            echo "::error::APPS_OWNERS_GROUP is unset. APPS_OWNERS_GROUP is used for setting file permissions"
+            vars_unset=true
+          fi
+          if [ -z "${{ secrets.REPO_PATH }}" ]; then
+            echo "::error::secrets.REPO_PATH is unset. REPO_PATH is the path where this repository is synced to"
+            vars_unset=true
+          fi
+
+          if [ "$vars_unset" == "true" ]; then
+            echo "::error::Required vars in Gadi Github Environment are unset."
+            exit 1
+          fi
+
       - name: Checkout repository
         uses: actions/checkout@v4
 
@@ -82,10 +119,16 @@ jobs:
       - name: Create Admin dirs on Gadi
         run: |
           ssh ${{ secrets.USER }}@${{ secrets.HOST }} -i ${{ steps.ssh.outputs.private-key-path }} /bin/bash <<'EOT'
-          source ${{ secrets.REPO_PATH }}/scripts/install_config.sh
-          source ${{ secrets.REPO_PATH }}/scripts/functions.sh
-          mkdir -p $ADMIN_DIR $JOB_LOG_DIR $BUILD_STAGE_DIR
-          set_admin_perms $ADMIN_DIR $JOB_LOG_DIR $BUILD_STAGE_DIR
+          set -e
+          export ADMIN_DIR="${{ vars.ADMIN_DIR }}"
+          export CONDA_BASE="${{ vars.CONDA_BASE }}"
+          export APPS_USERS_GROUP="${{ vars.APPS_USERS_GROUP }}"
+          export APPS_OWNERS_GROUP="${{ vars.APPS_OWNERS_GROUP }}"
+
+          source "${{ secrets.REPO_PATH }}/scripts/install_config.sh"
+          source "${{ secrets.REPO_PATH }}/scripts/functions.sh"
+          mkdir -p "${ADMIN_DIR}" "${JOB_LOG_DIR}" "${BUILD_STAGE_DIR}"
+          set_admin_perms "${ADMIN_DIR}" "${JOB_LOG_DIR}" "${BUILD_STAGE_DIR}"
           EOT
 
   build:

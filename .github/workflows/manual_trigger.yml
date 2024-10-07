@@ -34,11 +34,16 @@ jobs:
       - name: Create Admin dirs on Gadi
         run: |
           ssh ${{ secrets.USER }}@${{ secrets.HOST }} -i ${{ steps.ssh.outputs.private-key-path }} /bin/bash <<'EOT'
+          set -e
+          export ADMIN_DIR="${{ vars.ADMIN_DIR }}"
+          export CONDA_BASE="${{ vars.CONDA_BASE }}"
+          export APPS_USERS_GROUP="${{ vars.APPS_USERS_GROUP }}"
+          export APPS_OWNERS_GROUP="${{ vars.APPS_OWNERS_GROUP }}"
 
-          source ${{ secrets.REPO_PATH }}/scripts/install_config.sh
-          source ${{ secrets.REPO_PATH }}/scripts/functions.sh
-          mkdir -p $ADMIN_DIR $JOB_LOG_DIR $BUILD_STAGE_DIR
-          set_admin_perms $ADMIN_DIR $JOB_LOG_DIR $BUILD_STAGE_DIR
+          source "${{ secrets.REPO_PATH }}/scripts/install_config.sh"
+          source "${{ secrets.REPO_PATH }}/scripts/functions.sh"
+          mkdir -p "${ADMIN_DIR}" "${JOB_LOG_DIR}" "${BUILD_STAGE_DIR}"
+          set_admin_perms "${ADMIN_DIR}" "${JOB_LOG_DIR}" "${BUILD_STAGE_DIR}"
 
           EOT
 
