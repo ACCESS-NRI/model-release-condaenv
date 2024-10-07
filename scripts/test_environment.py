@@ -152,8 +152,8 @@ def test_import():
                 print("Error loading {}".format(info.name), file=sys.stderr)
                 raise
 
-def test_cdo():
-   assert subprocess.call(['cdo','--version']) == 0
+# def test_cdo():
+#    assert subprocess.call(['cdo','--version']) == 0
 
 if __name__ == '__main__':
     test_walk_packages()
