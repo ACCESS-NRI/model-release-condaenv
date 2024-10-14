@@ -92,6 +92,23 @@ EOF
 
 }
 
+function write_modulerc_stable() {
+    stable="${1}"
+    env_name="${2}"
+    module_path="${3}"
+    module_name="${4}"
+
+    cat<<EOF > "${module_path}"/.modulerc
+#%Module1.0
+
+module-version ${module_name}/${stable} ${env_name} default
+
+EOF
+
+    set_apps_perms "${module_path}/.modulerc"
+
+}
+
 function symlink_atomic_update() {
     link_name="${1}"
     link_target="${2}"
