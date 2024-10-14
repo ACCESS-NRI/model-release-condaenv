@@ -1,0 +1,18 @@
+name: payu
+channels:
+  - accessnri
+  - coecms
+  - conda-forge
+dependencies:
+  - python==3.10
+  - accessnri::payu==1.1.5
+  - yamanifest
+  - f90nml
+  - gh
+  - git
+  - nco
+  - pytest
+  - openssh>=8.3
+  - xarray
+  - mule
+  - um2nc

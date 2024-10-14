@@ -83,10 +83,26 @@ function write_modulerc() {
     cat<<EOF > "${module_path}"/.modulerc
 #%Module1.0
 
-module-version ${module_name}/${stable} analysis ${env_name} default
+module-version ${module_name}/${stable} ${env_name} default
 module-version ${module_name}/${unstable} ${env_name}-unstable
 
-module-version ${module_name}/analysis27-18.10 analysis27
+EOF
+
+    set_apps_perms "${module_path}/.modulerc"
+
+}
+
+function write_modulerc_stable() {
+    stable="${1}"
+    env_name="${2}"
+    module_path="${3}"
+    module_name="${4}"
+
+    cat<<EOF > "${module_path}"/.modulerc
+#%Module1.0
+
+module-version ${module_name}/${stable} ${env_name} default
+
 EOF
 
     set_apps_perms "${module_path}/.modulerc"
