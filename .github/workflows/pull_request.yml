@@ -40,11 +40,16 @@ jobs:
             name: base-container
             path: container/base.sif
 
-  setup:
+  build-and-test:
     runs-on: ubuntu-latest
     needs: [ generate_matrix, build_base_image ]
     if: ${{ needs.generate_matrix.outputs.environments != '[]' }}
     environment: Gadi
+    strategy:
+      matrix:
+        environment: ${{fromJson(needs.generate_matrix.outputs.environments)}}
+      max-parallel: 1
+      fail-fast: false
     steps:
       - name: Check Gadi Github Environment configuration
         run: |
@@ -131,27 +136,48 @@ jobs:
           set_admin_perms "${ADMIN_DIR}" "${JOB_LOG_DIR}" "${BUILD_STAGE_DIR}"
           EOT
 
-  build:
-    needs: [ generate_matrix, setup ]
-    uses: ./.github/workflows/build.yml
-    with:
-      environment: ${{ matrix.environment }}
-    secrets: inherit
-    if: ${{ needs.generate_matrix.outputs.environments != '[]' }}
-    strategy:
-      matrix:
-        environment: ${{fromJson(needs.generate_matrix.outputs.environments)}}
-      max-parallel: 1
-      fail-fast: false
-  test:
-    needs: [ generate_matrix, build ]
-    uses: ./.github/workflows/test.yml
-    with:
-      environment: ${{ matrix.environment }}
-    secrets: inherit
-    if: ${{ needs.generate_matrix.outputs.environments != '[]' }}
-    strategy:
-      matrix:
-        environment: ${{fromJson(needs.generate_matrix.outputs.environments)}}
-      max-parallel: 1
-      fail-fast: false
+      - name: Build conda environment
+        run: |
+          ssh ${{ secrets.USER }}@${{ secrets.HOST }} -i ${{ steps.ssh.outputs.private-key-path }} /bin/bash <<'EOT'
+          set -e
+          export SCRIPT_DIR="${{ secrets.REPO_PATH }}/scripts"
+          export CONDA_ENVIRONMENT="${{ matrix.environment }}"
+          export ADMIN_DIR="${{ vars.ADMIN_DIR }}"
+          export CONDA_BASE="${{ vars.CONDA_BASE }}"
+          export APPS_USERS_GROUP="${{ vars.APPS_USERS_GROUP }}"
+          export APPS_OWNERS_GROUP="${{ vars.APPS_OWNERS_GROUP }}"
+          PROJECT=${{ vars.PROJECT }}
+          STORAGE=${{ vars.STORAGE }}
+
+          source "${SCRIPT_DIR}"/install_config.sh
+          cd "${JOB_LOG_DIR}"
+
+          qsub -N build_"${CONDA_ENVIRONMENT}" -lncpus=1,mem=20GB,walltime=2:00:00,jobfs=50GB,storage="${STORAGE}" \
+            -v SCRIPT_DIR,CONDA_ENVIRONMENT,ADMIN_DIR,CONDA_BASE,APPS_USERS_GROUP,APPS_OWNERS_GROUP \
+            -P "${PROJECT}" -q copyq -Wblock=true -Wumask=037 \
+            "${SCRIPT_DIR}"/build.sh
+
+          EOT
+
+      - name: Test conda environment
+        run: |
+          ssh ${{ secrets.USER }}@${{ secrets.HOST }} -i ${{ steps.ssh.outputs.private-key-path }} /bin/bash <<'EOT'
+          set -e
+          export SCRIPT_DIR="${{secrets.REPO_PATH}}/scripts"
+          export CONDA_ENVIRONMENT="${{ matrix.environment }}"
+          export ADMIN_DIR="${{ vars.ADMIN_DIR }}"
+          export CONDA_BASE="${{ vars.CONDA_BASE }}"
+          export APPS_USERS_GROUP="${{ vars.APPS_USERS_GROUP }}"
+          export APPS_OWNERS_GROUP="${{ vars.APPS_OWNERS_GROUP }}"
+          PROJECT=${{ vars.PROJECT }}
+          STORAGE=${{ vars.STORAGE }}
+
+          source "${SCRIPT_DIR}"/install_config.sh
+          cd "${JOB_LOG_DIR}"
+
+          qsub -N test_"${CONDA_ENVIRONMENT}" -lncpus=4,mem=20GB,walltime=0:20:00,jobfs=50GB,storage="${STORAGE}" \
+            -v SCRIPT_DIR,CONDA_ENVIRONMENT,ADMIN_DIR,CONDA_BASE,APPS_USERS_GROUP,APPS_OWNERS_GROUP \
+            -P "${PROJECT}" -Wblock=true -Wumask=037 \
+            "${SCRIPT_DIR}"/test.sh
+
+          EOT
