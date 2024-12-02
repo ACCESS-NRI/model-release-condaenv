@@ -83,7 +83,7 @@ function write_modulerc() {
     cat<<EOF > "${module_path}"/.modulerc
 #%Module1.0
 
-module-version ${module_name}/${stable} ${env_name} default
+module-version ${module_name}/${stable} ${env_name}
 module-version ${module_name}/${unstable} ${env_name}-unstable
 
 EOF
@@ -101,7 +101,7 @@ function write_modulerc_stable() {
     cat<<EOF > "${module_path}"/.modulerc
 #%Module1.0
 
-module-version ${module_name}/${stable} ${env_name} default
+module-version ${module_name}/${stable} ${env_name}
 
 EOF
 
