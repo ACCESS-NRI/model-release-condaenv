@@ -9,7 +9,7 @@ jobs:
   build_base_image:
     runs-on: ubuntu-latest
     needs: generate_matrix
-    if: ${{ needs.generate_matrix.outputs.matrix != '{"include":[]}' }}
+    if: ${{ needs.generate_matrix.outputs.environments != '[]' }}
     container:
       image: quay.io/singularity/singularity:v3.11.4
       options: --privileged
@@ -31,7 +31,6 @@ jobs:
       - name: Build container if definition has changed
         if: steps.changed-container-def.outputs.containerdef_any_changed == 'true'
         run: |
-            echo ${{ needs.generate_matrix.outputs.matrix }}
             sudo -E singularity build container/base.sif container/container.def
 
       - name: Upload base container
@@ -44,7 +43,7 @@ jobs:
   setup:
     runs-on: ubuntu-latest
     needs: [ generate_matrix, build_base_image ]
-    if: ${{ needs.generate_matrix.outputs.matrix != '{"include":[]}' }}
+    if: ${{ needs.generate_matrix.outputs.environments != '[]' }}
     environment: Gadi
     steps:
       - name: Check Gadi Github Environment configuration
@@ -124,9 +123,10 @@ jobs:
           export CONDA_BASE="${{ vars.CONDA_BASE }}"
           export APPS_USERS_GROUP="${{ vars.APPS_USERS_GROUP }}"
           export APPS_OWNERS_GROUP="${{ vars.APPS_OWNERS_GROUP }}"
+          export REPO_PATH="${{ secrets.REPO_PATH }}"
 
-          source "${{ secrets.REPO_PATH }}/scripts/install_config.sh"
-          source "${{ secrets.REPO_PATH }}/scripts/functions.sh"
+          source "${REPO_PATH}"/scripts/install_config.sh
+          source "${REPO_PATH}"/scripts/functions.sh
           mkdir -p "${ADMIN_DIR}" "${JOB_LOG_DIR}" "${BUILD_STAGE_DIR}"
           set_admin_perms "${ADMIN_DIR}" "${JOB_LOG_DIR}" "${BUILD_STAGE_DIR}"
           EOT
@@ -137,9 +137,10 @@ jobs:
     with:
       environment: ${{ matrix.environment }}
     secrets: inherit
-    if: ${{ needs.generate_matrix.outputs.matrix != '{"include":[]}' }}
+    if: ${{ needs.generate_matrix.outputs.environments != '[]' }}
     strategy:
-      matrix: ${{fromJson(needs.generate_matrix.outputs.matrix)}}
+      matrix:
+        environment: ${{fromJson(needs.generate_matrix.outputs.environments)}}
       max-parallel: 1
       fail-fast: false
   test:
@@ -148,8 +149,9 @@ jobs:
     with:
       environment: ${{ matrix.environment }}
     secrets: inherit
-    if: ${{ needs.generate_matrix.outputs.matrix != '{"include":[]}' }}
+    if: ${{ needs.generate_matrix.outputs.environments != '[]' }}
     strategy:
-      matrix: ${{fromJson(needs.generate_matrix.outputs.matrix)}}
+      matrix:
+        environment: ${{fromJson(needs.generate_matrix.outputs.environments)}}
       max-parallel: 1
       fail-fast: false

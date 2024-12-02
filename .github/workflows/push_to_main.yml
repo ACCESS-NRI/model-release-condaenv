@@ -8,6 +8,7 @@ jobs:
 
   setup:
     runs-on: ubuntu-latest
+    if: ${{ needs.generate_matrix.outputs.environments != '[]' }}
     environment: Gadi
     steps:
       - name: Checkout repository
@@ -34,9 +35,10 @@ jobs:
     with:
       environment: ${{ matrix.environment }}
     secrets: inherit
-    if: ${{ needs.generate_matrix.outputs.matrix != '{"include":[]}' }}
-    strategy: 
-      matrix: ${{fromJson(needs.generate_matrix.outputs.matrix)}}
+    if: ${{ needs.generate_matrix.outputs.environments != '[]' }}
+    strategy:
+      matrix:
+        environment: ${{fromJson(needs.generate_matrix.outputs.environments)}}
       max-parallel: 1
       fail-fast: false
     
