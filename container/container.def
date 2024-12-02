@@ -38,8 +38,5 @@ Bootstrap: scratch
         mkdir -p ${SINGULARITY_ROOTFS}/var/lib/sss
         mkdir -p ${SINGULARITY_ROOTFS}/var/run/munge
 
-        mkdir -p ${SINGULARITY_ROOTFS}/opt/conda/payu-1.1.5
-        mkdir -p ${SINGULARITY_ROOTFS}/opt/conda/payu-dev
-
 %runscript
         /usr/bin/bash -l
