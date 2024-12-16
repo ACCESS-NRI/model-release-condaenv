@@ -48,6 +48,15 @@ if [[ "${CONDA_ENVIRONMENT}" ]]; then
         echo "ERROR! ${CONDA_ENVIRONMENT} config file missing!"
         exit 1
     fi
+
+    if [[ ! "${FULLENV}" ]]; then
+        echo "Error! FULLENV must be defined in ${CONDA_ENVIRONMENT} config file"
+        exit 1
+    fi
+    if [[ ! "${MODULE_VERSION}" ]]; then
+        echo "Error! MODULE_VERSION must be defined in ${CONDA_ENVIRONMENT} config file"
+        exit 1
+    fi
 fi
 
 ### Define any undefined arrays
