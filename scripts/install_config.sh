@@ -21,7 +21,8 @@ export SCRIPT_DIR="${SCRIPT_DIR:-$PWD}"
 # SCRIPT_SUBDIR contains the environment launcher scripts (for every file on 
 # $PATH inside the squashfs environment) that launches a container and 
 # runs commands inside the containerised environment
-export SCRIPT_SUBDIR="apps/conda_scripts"
+export CONDA_SCRIPTS_BASENAME="conda_scripts"
+export SCRIPT_SUBDIR="apps/${CONDA_SCRIPTS_BASENAME}"
 export MODULE_SUBDIR="modules"
 export APPS_SUBDIR="apps"
 
