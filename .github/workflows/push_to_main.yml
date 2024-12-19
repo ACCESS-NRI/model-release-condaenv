@@ -46,7 +46,7 @@ jobs:
           export ADMIN_DIR="${{ vars.ADMIN_DIR }}"
           export CONDA_BASE="${{ vars.CONDA_BASE }}"
           export APPS_USERS_GROUP="${{ vars.APPS_USERS_GROUP }}"
-          export APPS_OWNERS_GROUP="${{ vars.APPS_OWNERS_GROUP }}"
+          export APPS_OWNER="${{ vars.APPS_OWNER }}"
 
           source "${SCRIPT_DIR}"/install_config.sh
 

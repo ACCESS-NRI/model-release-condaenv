@@ -30,16 +30,16 @@ function set_apps_perms() {
             chgrp -R "${APPS_USERS_GROUP}" "${arg}"
             chmod -R g=u-w,o= "${arg}"
             chmod g+s "${arg}"
-            setfacl -R -m g:"${APPS_OWNERS_GROUP}":rwX,d:g:"${APPS_OWNERS_GROUP}":rwX "${arg}"
+            setfacl -R -m u:"${APPS_OWNER}":rwX,d:u:"${APPS_OWNER}":rwX "${arg}"
         elif [[ -f "${arg}" ]]; then
             ### reset any existing acls
             setfacl -b "${arg}"
             chgrp "${APPS_USERS_GROUP}" "${arg}"
             chmod g=u-w,o= "${arg}"
             if [[ -x "${arg}" ]]; then
-                setfacl -m g:"${APPS_OWNERS_GROUP}":rwX "${arg}"
+                setfacl -m u:"${APPS_OWNER}":rwX "${arg}"
             else
-                setfacl -m g:"${APPS_OWNERS_GROUP}":rw "${arg}"
+                setfacl -m u:"${APPS_OWNER}":rw "${arg}"
             fi
         elif [[ -h "${arg}" ]]; then
             chgrp -h "${APPS_USERS_GROUP}" "${arg}"
@@ -55,16 +55,16 @@ function set_admin_perms() {
             chgrp -R "${APPS_USERS_GROUP}" "${arg}"
             chmod -R g=u,o= "${arg}"
             chmod g+s "${arg}"
-            setfacl -R -m g:"${APPS_USERS_GROUP}":---,g:"${APPS_OWNERS_GROUP}":rwX,d:g:"${APPS_USERS_GROUP}":---,d:g:"${APPS_OWNERS_GROUP}":rwX "${arg}"
+            setfacl -R -m g:"${APPS_USERS_GROUP}":---,u:"${APPS_OWNER}":rwX,d:g:"${APPS_USERS_GROUP}":---,d:u:"${APPS_OWNER}":rwX "${arg}"
         elif [[ -f "${arg}" ]]; then
             ### reset any existing acls
             setfacl -b "${arg}"
             chgrp "${APPS_USERS_GROUP}" "${arg}"
             chmod g=u,o= "${arg}"
             if [[ -x "${arg}" ]]; then
-                setfacl -m g:"${APPS_USERS_GROUP}":---,g:"${APPS_OWNERS_GROUP}":rwX "${arg}"
+                setfacl -m g:"${APPS_USERS_GROUP}":---,u:"${APPS_OWNER}":rwX "${arg}"
             else
-                setfacl -m g:"${APPS_USERS_GROUP}":---,g:"${APPS_OWNERS_GROUP}":rw "${arg}"
+                setfacl -m g:"${APPS_USERS_GROUP}":---,u:"${APPS_OWNER}":rw "${arg}"
             fi
         elif [[ -h "${arg}" ]]; then
             chgrp -h "${APPS_USERS_GROUP}" "${arg}"

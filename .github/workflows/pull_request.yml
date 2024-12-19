@@ -74,8 +74,8 @@ jobs:
             echo "::error::vars.APPS_USERS_GROUP is unset. APPS_USERS_GROUP is used for setting file permissions"
             vars_unset=true
           fi
-          if [ -z "${{ vars.APPS_OWNERS_GROUP }}" ]; then
-            echo "::error::APPS_OWNERS_GROUP is unset. APPS_OWNERS_GROUP is used for setting file permissions"
+          if [ -z "${{ vars.APPS_OWNER }}" ]; then
+            echo "::error::APPS_OWNER is unset. APPS_OWNER is used for setting file permissions"
             vars_unset=true
           fi
           if [ -z "${{ secrets.REPO_PATH }}" ]; then
@@ -127,7 +127,7 @@ jobs:
           export ADMIN_DIR="${{ vars.ADMIN_DIR }}"
           export CONDA_BASE="${{ vars.CONDA_BASE }}"
           export APPS_USERS_GROUP="${{ vars.APPS_USERS_GROUP }}"
-          export APPS_OWNERS_GROUP="${{ vars.APPS_OWNERS_GROUP }}"
+          export APPS_OWNER="${{ vars.APPS_OWNER }}"
           export REPO_PATH="${{ secrets.REPO_PATH }}"
 
           source "${REPO_PATH}"/scripts/install_config.sh
@@ -145,7 +145,7 @@ jobs:
           export ADMIN_DIR="${{ vars.ADMIN_DIR }}"
           export CONDA_BASE="${{ vars.CONDA_BASE }}"
           export APPS_USERS_GROUP="${{ vars.APPS_USERS_GROUP }}"
-          export APPS_OWNERS_GROUP="${{ vars.APPS_OWNERS_GROUP }}"
+          export APPS_OWNER="${{ vars.APPS_OWNER }}"
           PROJECT=${{ vars.PROJECT }}
           STORAGE=${{ vars.STORAGE }}
 
@@ -153,7 +153,7 @@ jobs:
           cd "${JOB_LOG_DIR}"
 
           qsub -N build_"${CONDA_ENVIRONMENT}" -lncpus=1,mem=20GB,walltime=2:00:00,jobfs=50GB,storage="${STORAGE}" \
-            -v SCRIPT_DIR,CONDA_ENVIRONMENT,ADMIN_DIR,CONDA_BASE,APPS_USERS_GROUP,APPS_OWNERS_GROUP \
+            -v SCRIPT_DIR,CONDA_ENVIRONMENT,ADMIN_DIR,CONDA_BASE,APPS_USERS_GROUP,APPS_OWNER \
             -P "${PROJECT}" -q copyq -Wblock=true -Wumask=037 \
             "${SCRIPT_DIR}"/build.sh
 
@@ -168,7 +168,7 @@ jobs:
           export ADMIN_DIR="${{ vars.ADMIN_DIR }}"
           export CONDA_BASE="${{ vars.CONDA_BASE }}"
           export APPS_USERS_GROUP="${{ vars.APPS_USERS_GROUP }}"
-          export APPS_OWNERS_GROUP="${{ vars.APPS_OWNERS_GROUP }}"
+          export APPS_OWNER="${{ vars.APPS_OWNER }}"
           PROJECT=${{ vars.PROJECT }}
           STORAGE=${{ vars.STORAGE }}
 
@@ -176,7 +176,7 @@ jobs:
           cd "${JOB_LOG_DIR}"
 
           qsub -N test_"${CONDA_ENVIRONMENT}" -lncpus=4,mem=20GB,walltime=0:20:00,jobfs=50GB,storage="${STORAGE}" \
-            -v SCRIPT_DIR,CONDA_ENVIRONMENT,ADMIN_DIR,CONDA_BASE,APPS_USERS_GROUP,APPS_OWNERS_GROUP \
+            -v SCRIPT_DIR,CONDA_ENVIRONMENT,ADMIN_DIR,CONDA_BASE,APPS_USERS_GROUP,APPS_OWNER \
             -P "${PROJECT}" -Wblock=true -Wumask=037 \
             "${SCRIPT_DIR}"/test.sh
 

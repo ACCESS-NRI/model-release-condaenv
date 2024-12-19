@@ -47,8 +47,8 @@ if [[ ! "${APPS_USERS_GROUP}" ]]; then
     echo "Error! APPS_USERS_GROUP must be defined"
     exit 1
 fi
-if [[ ! "${APPS_OWNERS_GROUP}" ]]; then
-    echo "Error! APPS_OWNERS_GROUP must be defined"
+if [[ ! "${APPS_OWNER}" ]]; then
+    echo "Error! APPS_OWNER must be defined"
     exit 1
 fi
 
