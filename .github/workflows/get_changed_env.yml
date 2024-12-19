@@ -2,14 +2,14 @@ name: Get changed conda envs
 on:
   workflow_call:
     outputs:
-      matrix: 
-        value: ${{ jobs.generate_matrix.outputs.matrix }}
+      environments:
+        value: ${{ jobs.generate_matrix.outputs.environments }}
 jobs:
   generate_matrix:
     name: Determine changed environments
     runs-on: ubuntu-latest
     outputs:
-      matrix: ${{ steps.diff.outputs.matrix }}
+      environments: ${{ steps.diff.outputs.environments }}
     steps:
       - uses: actions/checkout@v4
       - name: Check changed environments
@@ -28,14 +28,19 @@ jobs:
             export DIFF=$( git diff --name-only ${{ github.event.before }} $GITHUB_SHA )
             echo "Diff between ${{ github.event.before }} and $GITHUB_SHA"
           fi
-          json="{\"include\":["
+          json="["
           for line in $DIFF; do
-            if [[ $line =~ environments ]]; then
+            # Check if string in the git diff starts with environments
+            if [[ $line =~ environments/* ]]; then
                 env_name=$( basename ${line%/*} )
-                if ! [[ $json =~ $env_name ]]; then
-                    json="$json{\"environment\":\"$env_name\"},"
+                # Check if environment has already been added to the array,
+                # and it has been deleted from the repository
+                if ! [[ $json =~ "\"$env_name\"" ]] && [ -d "environments/$env_name" ]; then
+                    json="$json\"$env_name\","
                 fi
             fi
           done
           ### https://github.com/actions/runner/issues/2947
-          echo "matrix=$( echo "${json%,}]}" | jq -r 'tostring' )" >> $GITHUB_OUTPUT
+          environments=$( echo "${json%,}]" | jq -r 'tostring' )
+          echo "Changed environments matrix: ${environments}"
+          echo "environments=${environments}" >> $GITHUB_OUTPUT

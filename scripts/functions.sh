@@ -30,16 +30,16 @@ function set_apps_perms() {
             chgrp -R "${APPS_USERS_GROUP}" "${arg}"
             chmod -R g=u-w,o= "${arg}"
             chmod g+s "${arg}"
-            setfacl -R -m g:"${APPS_OWNERS_GROUP}":rwX,d:g:"${APPS_OWNERS_GROUP}":rwX "${arg}"
+            setfacl -R -m u:"${APPS_OWNER}":rwX,d:u:"${APPS_OWNER}":rwX "${arg}"
         elif [[ -f "${arg}" ]]; then
             ### reset any existing acls
             setfacl -b "${arg}"
             chgrp "${APPS_USERS_GROUP}" "${arg}"
             chmod g=u-w,o= "${arg}"
             if [[ -x "${arg}" ]]; then
-                setfacl -m g:"${APPS_OWNERS_GROUP}":rwX "${arg}"
+                setfacl -m u:"${APPS_OWNER}":rwX "${arg}"
             else
-                setfacl -m g:"${APPS_OWNERS_GROUP}":rw "${arg}"
+                setfacl -m u:"${APPS_OWNER}":rw "${arg}"
             fi
         elif [[ -h "${arg}" ]]; then
             chgrp -h "${APPS_USERS_GROUP}" "${arg}"
@@ -55,16 +55,16 @@ function set_admin_perms() {
             chgrp -R "${APPS_USERS_GROUP}" "${arg}"
             chmod -R g=u,o= "${arg}"
             chmod g+s "${arg}"
-            setfacl -R -m g:"${APPS_USERS_GROUP}":---,g:"${APPS_OWNERS_GROUP}":rwX,d:g:"${APPS_USERS_GROUP}":---,d:g:"${APPS_OWNERS_GROUP}":rwX "${arg}"
+            setfacl -R -m g:"${APPS_USERS_GROUP}":---,u:"${APPS_OWNER}":rwX,d:g:"${APPS_USERS_GROUP}":---,d:u:"${APPS_OWNER}":rwX "${arg}"
         elif [[ -f "${arg}" ]]; then
             ### reset any existing acls
             setfacl -b "${arg}"
             chgrp "${APPS_USERS_GROUP}" "${arg}"
             chmod g=u,o= "${arg}"
             if [[ -x "${arg}" ]]; then
-                setfacl -m g:"${APPS_USERS_GROUP}":---,g:"${APPS_OWNERS_GROUP}":rwX "${arg}"
+                setfacl -m g:"${APPS_USERS_GROUP}":---,u:"${APPS_OWNER}":rwX "${arg}"
             else
-                setfacl -m g:"${APPS_USERS_GROUP}":---,g:"${APPS_OWNERS_GROUP}":rw "${arg}"
+                setfacl -m g:"${APPS_USERS_GROUP}":---,u:"${APPS_OWNER}":rw "${arg}"
             fi
         elif [[ -h "${arg}" ]]; then
             chgrp -h "${APPS_USERS_GROUP}" "${arg}"
@@ -83,10 +83,26 @@ function write_modulerc() {
     cat<<EOF > "${module_path}"/.modulerc
 #%Module1.0
 
-module-version ${module_name}/${stable} analysis ${env_name} default
+module-version ${module_name}/${stable} ${env_name}
 module-version ${module_name}/${unstable} ${env_name}-unstable
 
-module-version ${module_name}/analysis27-18.10 analysis27
+EOF
+
+    set_apps_perms "${module_path}/.modulerc"
+
+}
+
+function write_modulerc_stable() {
+    stable="${1}"
+    env_name="${2}"
+    module_path="${3}"
+    module_name="${4}"
+
+    cat<<EOF > "${module_path}"/.modulerc
+#%Module1.0
+
+module-version ${module_name}/${stable} ${env_name}
+
 EOF
 
     set_apps_perms "${module_path}/.modulerc"

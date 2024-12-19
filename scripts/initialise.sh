@@ -17,19 +17,15 @@ function inner() {
 
     mkdir -p "${CONDA_INSTALLATION_PATH}"
     pushd "${CONDA_INSTALLATION_PATH}"
-    #curl -Ls https://micro.mamba.pm/api/micromamba/linux-64/latest | tar -xvj bin/micromamba
+
+    curl -Ls https://micro.mamba.pm/api/micromamba/linux-64/latest | tar -xvj bin/micromamba
     ### Modified micromamba for compatibility with nb_conda_kernels
-    curl -Ls https://dsroberts.github.io/mamba/latest | tar -xvj bin/micromamba bin/activate
+    # curl -Ls https://dsroberts.github.io/mamba/latest | tar -xvj bin/micromamba bin/activate
     popd
 
     mkdir -p "${CONDA_SCRIPT_PATH}"/overrides
     cp "${SCRIPT_DIR}"/launcher.sh "${CONDA_SCRIPT_PATH}"
     cp "${SCRIPT_DIR}"/overrides/* "${CONDA_SCRIPT_PATH}"/overrides
-
-    mkdir -p "${CONDA_MODULE_PATH}"
-    ### These files contain hard-coded paths to the conda installation - these paths are created with variables set by install_config.sh
-    copy_and_replace "${SCRIPT_DIR}"/../modules/common_v3 "${CONDA_MODULE_PATH}"/.common_v3       CONDA_BASE APPS_SUBDIR CONDA_INSTALL_BASENAME SCRIPT_SUBDIR
-    copy_and_replace "${SCRIPT_DIR}"/launcher_conf.sh     "${CONDA_SCRIPT_PATH}"/launcher_conf.sh CONDA_BASE APPS_SUBDIR CONDA_INSTALL_BASENAME
 
 }
 
@@ -54,5 +50,5 @@ mkdir -p "${CONDA_OUTER_BASE}"/"${APPS_SUBDIR}"/"${CONDA_INSTALL_BASENAME}"/envs
 
 pushd "${CONDA_OUTER_BASE}"
 ### WARNING: Non-standard tar extension: --acls
-tar --acls -cf "${BUILD_STAGE_DIR}"/conda_base.tar "${APPS_SUBDIR}"/"${CONDA_INSTALL_BASENAME}" "${SCRIPT_SUBDIR}" "${MODULE_SUBDIR}"
+tar --acls -cf "${BUILD_STAGE_DIR}"/conda_base.tar "${APPS_SUBDIR}"/"${CONDA_INSTALL_BASENAME}" "${SCRIPT_SUBDIR}"
 popd

@@ -28,15 +28,14 @@ pushd "${CONDA_TEMP_PATH}"
 tar --acls -xf "${BUILD_STAGE_DIR}"/conda_base."${CONDA_ENVIRONMENT}".tar
 popd
 
-### rsync --archive attempts to set permissions on 
-### "${CONDA_BASE}" itself, which results in errors.
-set +e
+### To avoid rsync changing ACLs and permissions on $APPS_SUBDIR and $MODULE_SUBDIR,
+### the rsync destination is direct to the contents of these directories
 echo "Sync across any changes in the base conda environment"
-rsync --archive --verbose --partial --progress --one-file-system --itemize-changes --hard-links --acls --relative -- "${CONDA_TEMP_PATH}"/./"${APPS_SUBDIR}"/"${CONDA_INSTALL_BASENAME}" "${CONDA_TEMP_PATH}"/./"${MODULE_SUBDIR}" "${CONDA_TEMP_PATH}"/./"${SCRIPT_SUBDIR}" "${CONDA_BASE}"
+rsync --archive --verbose --partial --progress --one-file-system --itemize-changes --hard-links --acls --relative -- "${CONDA_TEMP_PATH}"/"${APPS_SUBDIR}"/./"${CONDA_INSTALL_BASENAME}" "${CONDA_TEMP_PATH}"/"${APPS_SUBDIR}"/./"${CONDA_SCRIPTS_BASENAME}" "${CONDA_BASE}"/"${APPS_SUBDIR}"
+rsync --archive --verbose --partial --progress --one-file-system --itemize-changes --hard-links --acls --relative -- "${CONDA_TEMP_PATH}"/"${MODULE_SUBDIR}"/./"${MODULE_NAME}" "${CONDA_BASE}"/"${MODULE_SUBDIR}"
 
 echo "Make sure anything deleted from this environments scripts directory is also deleted from the prod copy"
-rsync --archive --verbose --partial --progress --one-file-system --itemize-changes --hard-links --acls --relative --delete -- "${CONDA_TEMP_PATH}"/./"${SCRIPT_SUBDIR}"/"${FULLENV}".d "${CONDA_BASE}"
-set -e
+rsync --archive --verbose --partial --progress --one-file-system --itemize-changes --hard-links --acls --relative --delete -- "${CONDA_TEMP_PATH}"/"${APPS_SUBDIR}"/./"${CONDA_SCRIPTS_BASENAME}"/"${FULLENV}".d "${CONDA_BASE}"/"${APPS_SUBDIR}"
 
 [[ -e "${CONDA_INSTALLATION_PATH}"/envs/"${FULLENV}".sqsh ]] && cp "${CONDA_INSTALLATION_PATH}"/envs/"${FULLENV}".sqsh "${ADMIN_DIR}"/"${FULLENV}".sqsh.bak
 mv "${BUILD_STAGE_DIR}"/"${FULLENV}".sqsh.tmp "${CONDA_INSTALLATION_PATH}"/envs/"${FULLENV}".sqsh

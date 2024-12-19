@@ -8,47 +8,104 @@ on:
         type: string
 
 jobs:
-  setup:
+  build_test_and_deploy:
     runs-on: ubuntu-latest
+    environment: Gadi
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-      - name: Sync repository to Gadi
-        uses: up9cloud/action-rsync@v1.3
-        env:
-          HOST: gadi.nci.org.au
-          TARGET: ${{secrets.GADI_REPO_PATH}}
-          KEY: ${{secrets.DEPLOY_KEY}}
-          USER: ${{secrets.GADI_USER}}
-      - name: Create Admin dirs on Gadi
-        uses: appleboy/ssh-action@v0.1.7
+
+      - name: Setup SSH
+        uses: access-nri/actions/.github/actions/setup-ssh@main
+        id: ssh
         with:
-          host: gadi.nci.org.au
-          username: ${{secrets.GADI_USER}}
-          key: ${{secrets.DEPLOY_KEY}}
-          script: |
-            source ${{secrets.GADI_REPO_PATH}}/scripts/install_config.sh
-            source ${{secrets.GADI_REPO_PATH}}/scripts/functions.sh
-            mkdir -p $ADMIN_DIR $JOB_LOG_DIR $BUILD_STAGE_DIR
-            set_admin_perms $ADMIN_DIR $JOB_LOG_DIR $BUILD_STAGE_DIR
+          hosts: |
+            ${{ secrets.HOST }}
+            ${{ secrets.HOST_DATA }}
+          private-key: ${{ secrets.SSH_KEY }}
 
-  build:
-    needs: setup
-    uses: ./.github/workflows/build.yml
-    with:
-      environment: ${{ inputs.environment }}
-    secrets: inherit
+      - name: Sync repository to Gadi
+        run: |
+          rsync -e 'ssh -i ${{ steps.ssh.outputs.private-key-path }}' \
+            -avz --delete --exclude=/.git/ --exclude=/.github/ \
+            ./ \
+            ${{ secrets.USER }}@${{ secrets.HOST_DATA }}:${{ secrets.REPO_PATH }}
 
-  test:
-    needs: build
-    uses: ./.github/workflows/test.yml
-    with:
-      environment: ${{ inputs.environment }}
-    secrets: inherit
+      - name: Create Admin dirs on Gadi
+        run: |
+          ssh ${{ secrets.USER }}@${{ secrets.HOST }} -i ${{ steps.ssh.outputs.private-key-path }} /bin/bash <<'EOT'
+          set -e
+          export ADMIN_DIR="${{ vars.ADMIN_DIR }}"
+          export CONDA_BASE="${{ vars.CONDA_BASE }}"
+          export APPS_USERS_GROUP="${{ vars.APPS_USERS_GROUP }}"
+          export APPS_OWNER="${{ vars.APPS_OWNER }}"
 
-  deploy:
-    needs: test
-    uses: ./.github/workflows/deploy.yml
-    with:
-      environment: ${{ inputs.environment }}
-    secrets: inherit
+          source "${{ secrets.REPO_PATH }}/scripts/install_config.sh"
+          source "${{ secrets.REPO_PATH }}/scripts/functions.sh"
+          mkdir -p "${ADMIN_DIR}" "${JOB_LOG_DIR}" "${BUILD_STAGE_DIR}"
+          set_admin_perms "${ADMIN_DIR}" "${JOB_LOG_DIR}" "${BUILD_STAGE_DIR}"
+
+          EOT
+
+      - name: Build conda environment
+        run: |
+          ssh ${{ secrets.USER }}@${{ secrets.HOST }} -i ${{ steps.ssh.outputs.private-key-path }} /bin/bash <<'EOT'
+          set -e
+          export SCRIPT_DIR="${{ secrets.REPO_PATH }}/scripts"
+          export CONDA_ENVIRONMENT="${{ inputs.environment }}"
+          export ADMIN_DIR="${{ vars.ADMIN_DIR }}"
+          export CONDA_BASE="${{ vars.CONDA_BASE }}"
+          export APPS_USERS_GROUP="${{ vars.APPS_USERS_GROUP }}"
+          export APPS_OWNER="${{ vars.APPS_OWNER }}"
+          PROJECT=${{ vars.PROJECT }}
+          STORAGE=${{ vars.STORAGE }}
+
+          source "${SCRIPT_DIR}"/install_config.sh
+          cd "${JOB_LOG_DIR}"
+
+          qsub -N build_"${CONDA_ENVIRONMENT}" -lncpus=1,mem=20GB,walltime=2:00:00,jobfs=50GB,storage="${STORAGE}" \
+            -v SCRIPT_DIR,CONDA_ENVIRONMENT,ADMIN_DIR,CONDA_BASE,APPS_USERS_GROUP,APPS_OWNER \
+            -P "${PROJECT}" -q copyq -Wblock=true -Wumask=037 \
+            "${SCRIPT_DIR}"/build.sh
+
+          EOT
+
+      - name: Test conda environment
+        run: |
+          ssh ${{ secrets.USER }}@${{ secrets.HOST }} -i ${{ steps.ssh.outputs.private-key-path }} /bin/bash <<'EOT'
+          set -e
+          export SCRIPT_DIR="${{secrets.REPO_PATH}}/scripts"
+          export CONDA_ENVIRONMENT="${{ inputs.environment }}"
+          export ADMIN_DIR="${{ vars.ADMIN_DIR }}"
+          export CONDA_BASE="${{ vars.CONDA_BASE }}"
+          export APPS_USERS_GROUP="${{ vars.APPS_USERS_GROUP }}"
+          export APPS_OWNER="${{ vars.APPS_OWNER }}"
+          PROJECT=${{ vars.PROJECT }}
+          STORAGE=${{ vars.STORAGE }}
+
+          source "${SCRIPT_DIR}"/install_config.sh
+          cd "${JOB_LOG_DIR}"
+
+          qsub -N test_"${CONDA_ENVIRONMENT}" -lncpus=4,mem=20GB,walltime=0:20:00,jobfs=50GB,storage="${STORAGE}" \
+            -v SCRIPT_DIR,CONDA_ENVIRONMENT,ADMIN_DIR,CONDA_BASE,APPS_USERS_GROUP,APPS_OWNER \
+            -P "${PROJECT}" -Wblock=true -Wumask=037 \
+            "${SCRIPT_DIR}"/test.sh
+
+          EOT
+
+      - name: Deploy conda environment
+        run: |
+          ssh ${{ secrets.USER }}@${{ secrets.HOST }} -i ${{ steps.ssh.outputs.private-key-path }} /bin/bash <<'EOT'
+          set -e
+          export SCRIPT_DIR="${{ secrets.REPO_PATH }}/scripts"
+          export CONDA_ENVIRONMENT="${{ inputs.environment }}"
+          export ADMIN_DIR="${{ vars.ADMIN_DIR }}"
+          export CONDA_BASE="${{ vars.CONDA_BASE }}"
+          export APPS_USERS_GROUP="${{ vars.APPS_USERS_GROUP }}"
+          export APPS_OWNER="${{ vars.APPS_OWNER }}"
+
+          source "${SCRIPT_DIR}"/install_config.sh
+
+          "${SCRIPT_DIR}"/deploy.sh
+
+          EOT
