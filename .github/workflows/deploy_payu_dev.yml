@@ -1,0 +1,185 @@
+name: Deploy Dev Enviroment
+on:
+  schedule:
+   - cron: '0 21 * * *' # Runs every morning at 7AM AEST
+  workflow_dispatch: # Allows manual triggering
+  push:
+    branches:
+      - main
+    paths:
+      - 'environments/payu-dev/**' # Run when payu-dev environment is updated
+jobs:
+  check-for-payu-updates:
+    runs-on: ubuntu-latest
+    outputs:
+      commits-count: ${{ steps.check-payu-commits.outputs.commits-count }}
+      last-commit-hash: ${{ steps.check-payu-commits.outputs.latest-commit-hash }}
+    steps:
+      - name: Checkout current repository
+        uses: actions/checkout@v4
+
+      - name: Get last workflow run time
+        id: last-run-time
+        env:
+          GH_TOKEN: ${{ secrets.GH_TOKEN }}
+        run: |
+          # Fetch the last successful workflow run time
+          last_run_time=$(gh run list --status success --workflow deploy_payu_dev.yml --json updatedAt --jq .[0].updatedAt)
+
+          echo "Last successful workflow run time: $last_run_time"
+          echo "last-run-time=$last_run_time" >> $GITHUB_OUTPUT
+
+      - name: Checkout payu repository
+        uses: actions/checkout@v4
+        with:
+          repository: payu-org/payu
+          path: payu
+          ref: master
+
+      - name: Check commits in payu repository
+        id: check-payu-commits
+        run: |
+          # Check for any commits since last successful runtime
+          last_run_time="${{ steps.last-run-time.outputs.last-run-time }}"
+          commits_count=$(git -C ./payu rev-list --count --since="$last_run_time" master)
+
+          # Get latest commit hash
+          latest_commit_hash=$(git -C ./payu rev-parse --short HEAD)
+
+          echo "::notice::Number of new commits since last run: $commits_count, latest commit hash: $latest_commit_hash"
+
+          echo "commits-count=$commits_count" >> $GITHUB_OUTPUT
+          echo "latest-commit-hash=$latest_commit_hash" >> $GITHUB_OUTPUT
+      
+
+  build_test_and_deploy:
+    name: Build, test and deploy payu-dev
+    runs-on: ubuntu-latest
+    needs:
+      - check-for-payu-updates
+    # Deploy payu if manually triggered, payu environment files has been updated,
+    # or if there's new commits to payu repository
+    if: >
+      needs.check-for-payu-updates.outputs.commits-count > 0 ||
+      github.event_name == 'push' ||
+      github.event_name == 'workflow_dispatch'
+    environment: Gadi
+    env:
+      environment: payu-dev
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Get Payu Version
+        id: payu
+        run: |
+          # Set version to datetime and last short commit hash of payu
+          NOW=$(date -u +"%Y%m%dT%H%M%SZ")
+          COMMIT_HASH=${{ needs.check-for-payu-updates.outputs.last-commit-hash }}
+          VERSION="dev-$NOW-$COMMIT_HASH"
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+      
+      - name: Update Environment file
+        run: |
+          # Replace payu commit hash in environment file with latest commit hash
+          PAYU_URL="git+https://github.com/payu-org/payu.git"
+          sed -i "s|$PAYU_URL@.*$|$PAYU_URL@${{ needs.check-for-payu-updates.outputs.last-commit-hash }}|g" environments/payu-dev/environment.yml
+      
+      - name: Update Version in config file
+        run: |
+          # Update VERSION_TO_MODIFY in payu-dev config file
+          sed -i "s|^export VERSION_TO_MODIFY=.*$|export VERSION_TO_MODIFY=${{ steps.payu.outputs.version }}|g" environments/payu-dev/config.sh
+
+      - name: Setup SSH
+        uses: access-nri/actions/.github/actions/setup-ssh@main
+        id: ssh
+        with:
+          hosts: |
+            ${{ secrets.HOST }}
+            ${{ secrets.HOST_DATA }}
+          private-key: ${{ secrets.SSH_KEY }}
+
+      - name: Sync repository to Gadi
+        run: |
+          rsync -e 'ssh -i ${{ steps.ssh.outputs.private-key-path }}' \
+            -avz --delete --exclude=/.git/ --exclude=/.github/ \
+            ./ \
+            ${{ secrets.USER }}@${{ secrets.HOST_DATA }}:${{ secrets.REPO_PATH }}
+
+      - name: Create Admin dirs on Gadi
+        run: |
+          ssh ${{ secrets.USER }}@${{ secrets.HOST }} -i ${{ steps.ssh.outputs.private-key-path }} /bin/bash <<'EOT'
+          set -e
+          export ADMIN_DIR="${{ vars.ADMIN_DIR }}"
+          export CONDA_BASE="${{ vars.CONDA_BASE }}"
+          export APPS_USERS_GROUP="${{ vars.APPS_USERS_GROUP }}"
+          export APPS_OWNER="${{ vars.APPS_OWNER }}"
+
+          source "${{ secrets.REPO_PATH }}/scripts/install_config.sh"
+          source "${{ secrets.REPO_PATH }}/scripts/functions.sh"
+          mkdir -p "${ADMIN_DIR}" "${JOB_LOG_DIR}" "${BUILD_STAGE_DIR}"
+          set_admin_perms "${ADMIN_DIR}" "${JOB_LOG_DIR}" "${BUILD_STAGE_DIR}"
+
+          EOT
+
+      - name: Build conda environment
+        run: |
+          ssh ${{ secrets.USER }}@${{ secrets.HOST }} -i ${{ steps.ssh.outputs.private-key-path }} /bin/bash <<'EOT'
+          set -e
+          export SCRIPT_DIR="${{ secrets.REPO_PATH }}/scripts"
+          export CONDA_ENVIRONMENT="${{ env.environment }}"
+          export ADMIN_DIR="${{ vars.ADMIN_DIR }}"
+          export CONDA_BASE="${{ vars.CONDA_BASE }}"
+          export APPS_USERS_GROUP="${{ vars.APPS_USERS_GROUP }}"
+          export APPS_OWNER="${{ vars.APPS_OWNER }}"
+          PROJECT=${{ vars.PROJECT }}
+          STORAGE=${{ vars.STORAGE }}
+
+          source "${SCRIPT_DIR}"/install_config.sh
+          cd "${JOB_LOG_DIR}"
+
+          qsub -N build_"${CONDA_ENVIRONMENT}" -lncpus=1,mem=20GB,walltime=2:00:00,jobfs=50GB,storage="${STORAGE}" \
+            -v SCRIPT_DIR,CONDA_ENVIRONMENT,ADMIN_DIR,CONDA_BASE,APPS_USERS_GROUP,APPS_OWNER \
+            -P "${PROJECT}" -q copyq -Wblock=true -Wumask=037 \
+            "${SCRIPT_DIR}"/build.sh
+
+          EOT
+
+      - name: Test conda environment
+        run: |
+          ssh ${{ secrets.USER }}@${{ secrets.HOST }} -i ${{ steps.ssh.outputs.private-key-path }} /bin/bash <<'EOT'
+          set -e
+          export SCRIPT_DIR="${{secrets.REPO_PATH}}/scripts"
+          export CONDA_ENVIRONMENT="${{ env.environment }}"
+          export ADMIN_DIR="${{ vars.ADMIN_DIR }}"
+          export CONDA_BASE="${{ vars.CONDA_BASE }}"
+          export APPS_USERS_GROUP="${{ vars.APPS_USERS_GROUP }}"
+          export APPS_OWNER="${{ vars.APPS_OWNER }}"
+          PROJECT=${{ vars.PROJECT }}
+          STORAGE=${{ vars.STORAGE }}
+
+          source "${SCRIPT_DIR}"/install_config.sh
+          cd "${JOB_LOG_DIR}"
+
+          qsub -N test_"${CONDA_ENVIRONMENT}" -lncpus=4,mem=20GB,walltime=0:20:00,jobfs=50GB,storage="${STORAGE}" \
+            -v SCRIPT_DIR,CONDA_ENVIRONMENT,ADMIN_DIR,CONDA_BASE,APPS_USERS_GROUP,APPS_OWNER \
+            -P "${PROJECT}" -Wblock=true -Wumask=037 \
+            "${SCRIPT_DIR}"/test.sh
+
+          EOT
+
+      - name: Deploy conda environment
+        run: |
+          ssh ${{ secrets.USER }}@${{ secrets.HOST }} -i ${{ steps.ssh.outputs.private-key-path }} /bin/bash <<'EOT'
+          set -e
+          export SCRIPT_DIR="${{ secrets.REPO_PATH }}/scripts"
+          export CONDA_ENVIRONMENT="${{ env.environment }}"
+          export ADMIN_DIR="${{ vars.ADMIN_DIR }}"
+          export CONDA_BASE="${{ vars.CONDA_BASE }}"
+          export APPS_USERS_GROUP="${{ vars.APPS_USERS_GROUP }}"
+          export APPS_OWNER="${{ vars.APPS_OWNER }}"
+
+          source "${SCRIPT_DIR}"/install_config.sh
+
+          "${SCRIPT_DIR}"/deploy.sh
+
+          EOT
