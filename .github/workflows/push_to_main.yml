@@ -2,9 +2,15 @@ name: Deploy conda env
 on:
   push:
     branches: main
+  # Excludes changes from only environments/payu-dev as this is handled by 
+  # the deploy_payu_dev.yml workflow
+    paths-ignore:
+      - 'environments/payu-dev/**'
 jobs:
   generate_matrix:
     uses: ./.github/workflows/get_changed_env.yml
+    with:
+      ignore-environments: '["payu-dev"]'
 
   deploy:
     needs: [ generate_matrix ]
