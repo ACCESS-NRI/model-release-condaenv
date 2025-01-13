@@ -13,34 +13,21 @@ jobs:
     container:
       image: quay.io/singularity/singularity:v3.11.4
       options: --privileged
-    outputs:
-      built-container: ${{ steps.changed-container-def.outputs.containerdef_any_changed }}
     steps:
       - name: Checkout repository
-        ### Latest at time of writing
         uses: actions/checkout@v4
 
-      - name: Check if container definition has changed
-        id: changed-container-def
-        uses: tj-actions/changed-files@48d8f15b2aaa3d255ca5af3eba4870f807ce6b3c # v43.0.2
-        with:
-          files_yaml: |
-            containerdef:
-              - container/container.def
-
-      - name: Build container if definition has changed
-        if: steps.changed-container-def.outputs.containerdef_any_changed == 'true'
+      - name: Build container
         run: |
             sudo -E singularity build container/base.sif container/container.def
 
       - name: Upload base container
-        if: steps.changed-container-def.outputs.containerdef_any_changed == 'true'
         uses: actions/upload-artifact@v4
         with:
             name: base-container
             path: container/base.sif
 
-  build-and-test:
+  build_and_test:
     runs-on: ubuntu-latest
     needs: [ generate_matrix, build_base_image ]
     if: ${{ needs.generate_matrix.outputs.environments != '[]' }}
@@ -113,7 +100,6 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Download base container
-        if: needs.build_base_image.outputs.built-container == 'true'
         uses: actions/download-artifact@v4
         with:
             name: base-container

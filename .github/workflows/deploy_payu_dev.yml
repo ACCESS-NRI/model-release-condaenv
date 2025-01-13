@@ -1,4 +1,4 @@
-name: Deploy Dev Enviroment
+name: Deploy payu-dev conda environment
 on:
   schedule:
    - cron: '0 21 * * *' # Runs every morning at 7AM AEST
@@ -9,7 +9,8 @@ on:
     paths:
       - 'environments/payu-dev/**' # Run when payu-dev environment is updated
 jobs:
-  check-for-payu-updates:
+  check_for_payu_updates:
+    name: Check for updates to payu-org/payu repository
     runs-on: ubuntu-latest
     outputs:
       commits-count: ${{ steps.check-payu-commits.outputs.commits-count }}
@@ -52,34 +53,20 @@ jobs:
           echo "latest-commit-hash=$latest_commit_hash" >> $GITHUB_OUTPUT
 
   build_base_image:
+    name: Build base singularity image
     runs-on: ubuntu-latest
-    # Run only for push events
-    if: github.event_name == 'push'
     container:
       image: quay.io/singularity/singularity:v3.11.4
       options: --privileged
-    outputs:
-      built-container: ${{ steps.changed-container-def.outputs.containerdef }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Filter files
-        id: changed-container-def
-        run: |
-          if git diff --exit-code HEAD..HEAD~1 -- container/container.def; then
-            echo "containerdef=false" >> $GITHUB_OUTPUT
-          else
-            echo "containerdef=true" >> $GITHUB_OUTPUT
-          fi
-
-      - name: Build container if definition has changed
-        if: steps.changed-container-def.outputs.containerdef == 'true'
+      - name: Build container
         run: |
             sudo -E singularity build container/base.sif container/container.def
 
       - name: Upload base container
-        if: steps.changed-container-def.outputs.containerdef == 'true'
         uses: actions/upload-artifact@v4
         with:
             name: base-container
@@ -90,15 +77,13 @@ jobs:
     runs-on: ubuntu-latest
     needs:
       - build_base_image
-      - check-for-payu-updates
-    # Allow needs.build_base_image job to be skipped, and
-    # deploy if manually triggered, payu environment files has been updated,
+      - check_for_payu_updates
+    # Deploy if manually triggered, payu environment files has been updated,
     # or if there's new commits to payu repository
     if: >
-      always() && !cancelled() && !failure() &&
-      ( needs.check-for-payu-updates.outputs.commits-count > 0 ||
+      needs.check_for_payu_updates.outputs.commits-count > 0 ||
       github.event_name == 'push' ||
-      github.event_name == 'workflow_dispatch' )
+      github.event_name == 'workflow_dispatch'
     environment: Gadi
     env:
       environment: payu-dev
@@ -106,9 +91,6 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Download base container
-        if: |
-          needs.build_base_image.result == 'success' &&
-          needs.build_base_image.outputs.built-container == 'true'
         uses: actions/download-artifact@v4
         with:
             name: base-container
@@ -119,7 +101,7 @@ jobs:
         run: |
           # Set version to datetime and last short commit hash of payu
           NOW=$(date -u +"%Y%m%dT%H%M%SZ")
-          COMMIT_HASH=${{ needs.check-for-payu-updates.outputs.last-commit-hash }}
+          COMMIT_HASH=${{ needs.check_for_payu_updates.outputs.last-commit-hash }}
           VERSION="dev-$NOW-$COMMIT_HASH"
           echo "version=$VERSION" >> $GITHUB_OUTPUT
       
@@ -127,7 +109,7 @@ jobs:
         run: |
           # Replace payu commit hash in environment file with latest commit hash
           PAYU_URL="git+https://github.com/payu-org/payu.git"
-          sed -i "s|$PAYU_URL@.*$|$PAYU_URL@${{ needs.check-for-payu-updates.outputs.last-commit-hash }}|g" environments/payu-dev/environment.yml
+          sed -i "s|$PAYU_URL@.*$|$PAYU_URL@${{ needs.check_for_payu_updates.outputs.last-commit-hash }}|g" environments/payu-dev/environment.yml
       
       - name: Update Version in config file
         run: |
