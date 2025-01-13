@@ -43,14 +43,27 @@ jobs:
             ./ \
             ${{ secrets.USER }}@${{ secrets.HOST_DATA }}:${{ secrets.REPO_PATH }}
 
+      - name: Set release/prerelease directories
+        run: |
+          # Check if environment is in list of prerelease environments
+          if [[ '${{ vars.PRERELEASE_ENVIRONMENTS }}' =~ '"${{ matrix.environment }}"' ]]; then
+            echo "Using prerelease deployment directories"
+            echo "CONDA_BASE=${{ vars.PRERELEASE_CONDA_BASE }}" >> $GITHUB_ENV
+            echo "ADMIN_DIR=${{ vars.PRERELEASE_ADMIN_DIR }}" >> $GITHUB_ENV
+          else
+            echo "Using release deployment directories"
+            echo "CONDA_BASE=${{ vars.CONDA_BASE }}" >> $GITHUB_ENV
+            echo "ADMIN_DIR=${{ vars.ADMIN_DIR }}" >> $GITHUB_ENV
+          fi
+
       - name: Deploy conda environment
         run: |
           ssh ${{ secrets.USER }}@${{ secrets.HOST }} -i ${{ steps.ssh.outputs.private-key-path }} /bin/bash <<'EOT'
           set -e
           export SCRIPT_DIR="${{ secrets.REPO_PATH }}/scripts"
           export CONDA_ENVIRONMENT="${{ matrix.environment }}"
-          export ADMIN_DIR="${{ vars.ADMIN_DIR }}"
-          export CONDA_BASE="${{ vars.CONDA_BASE }}"
+          export ADMIN_DIR="${{ env.ADMIN_DIR }}"
+          export CONDA_BASE="${{ env.CONDA_BASE }}"
           export APPS_USERS_GROUP="${{ vars.APPS_USERS_GROUP }}"
           export APPS_OWNER="${{ vars.APPS_OWNER }}"
 

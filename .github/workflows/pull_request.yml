@@ -62,6 +62,14 @@ jobs:
             echo "::error::vars.CONDA_BASE is unset. CONDA_BASE is the base deployment directory which will contain apps and module sub-directories"
             vars_unset=true
           fi
+          if [ -z "${{ vars.PRERELEASE_ADMIN_DIR }}" ]; then
+            echo "::error::vars.PRERELEASE_ADMIN_DIR is unset. PRERELEASE_ADMIN_DIR is the prerelease base directory which will contain the staging and logs sub-directories"
+            vars_unset=true
+          fi
+          if [ -z "${{ vars.PRERELEASE_CONDA_BASE }}" ]; then
+            echo "::error::vars.PRERELEASE_CONDA_BASE is unset. PRERELEASE_CONDA_BASE is the prerelease base deployment directory which will contain apps and module sub-directories"
+            vars_unset=true
+          fi
           if [ -z "${{ vars.PROJECT }}" ]; then
             echo "::error::vars.PROJECT is unset. PROJECT is the project code passed to build+test qsub calls"
             vars_unset=true
@@ -86,6 +94,19 @@ jobs:
           if [ "$vars_unset" == "true" ]; then
             echo "::error::Required vars in Gadi Github Environment are unset."
             exit 1
+          fi
+
+      - name: Set release/prerelease directories
+        run: |
+          # Check if environment is in list of prerelease environments
+          if [[ '${{ vars.PRERELEASE_ENVIRONMENTS }}' =~ '"${{ matrix.environment }}"' ]]; then
+            echo "Using prerelease deployment directories"
+            echo "CONDA_BASE=${{ vars.PRERELEASE_CONDA_BASE }}" >> $GITHUB_ENV
+            echo "ADMIN_DIR=${{ vars.PRERELEASE_ADMIN_DIR }}" >> $GITHUB_ENV
+          else
+            echo "Using release deployment directories"
+            echo "CONDA_BASE=${{ vars.CONDA_BASE }}" >> $GITHUB_ENV
+            echo "ADMIN_DIR=${{ vars.ADMIN_DIR }}" >> $GITHUB_ENV
           fi
 
       - name: Checkout repository
@@ -124,8 +145,8 @@ jobs:
         run: |
           ssh ${{ secrets.USER }}@${{ secrets.HOST }} -i ${{ steps.ssh.outputs.private-key-path }} /bin/bash <<'EOT'
           set -e
-          export ADMIN_DIR="${{ vars.ADMIN_DIR }}"
-          export CONDA_BASE="${{ vars.CONDA_BASE }}"
+          export ADMIN_DIR="${{ env.ADMIN_DIR }}"
+          export CONDA_BASE="${{ env.CONDA_BASE }}"
           export APPS_USERS_GROUP="${{ vars.APPS_USERS_GROUP }}"
           export APPS_OWNER="${{ vars.APPS_OWNER }}"
           export REPO_PATH="${{ secrets.REPO_PATH }}"
@@ -142,8 +163,8 @@ jobs:
           set -e
           export SCRIPT_DIR="${{ secrets.REPO_PATH }}/scripts"
           export CONDA_ENVIRONMENT="${{ matrix.environment }}"
-          export ADMIN_DIR="${{ vars.ADMIN_DIR }}"
-          export CONDA_BASE="${{ vars.CONDA_BASE }}"
+          export ADMIN_DIR="${{ env.ADMIN_DIR }}"
+          export CONDA_BASE="${{ env.CONDA_BASE }}"
           export APPS_USERS_GROUP="${{ vars.APPS_USERS_GROUP }}"
           export APPS_OWNER="${{ vars.APPS_OWNER }}"
           PROJECT=${{ vars.PROJECT }}
@@ -165,8 +186,8 @@ jobs:
           set -e
           export SCRIPT_DIR="${{secrets.REPO_PATH}}/scripts"
           export CONDA_ENVIRONMENT="${{ matrix.environment }}"
-          export ADMIN_DIR="${{ vars.ADMIN_DIR }}"
-          export CONDA_BASE="${{ vars.CONDA_BASE }}"
+          export ADMIN_DIR="${{ env.ADMIN_DIR }}"
+          export CONDA_BASE="${{ env.CONDA_BASE }}"
           export APPS_USERS_GROUP="${{ vars.APPS_USERS_GROUP }}"
           export APPS_OWNER="${{ vars.APPS_OWNER }}"
           PROJECT=${{ vars.PROJECT }}
