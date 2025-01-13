@@ -8,12 +8,59 @@ on:
         type: string
 
 jobs:
-  build_test_and_deploy:
+  check_input_environment:
     runs-on: ubuntu-latest
-    environment: Gadi
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+
+      - name: Check environment is not payu-dev
+        run: |
+          if [[ "${{ inputs.environment }}" == "payu-dev" ]]; then
+            echo "::error::Use the custom deploy_payu_dev workflow to deploy payu-dev environment"
+            exit 1
+          fi
+
+          if [[ ! -d "environments/${{ inputs.environment }}" ]]; then
+            echo "::error::No environment configuration directory found"
+            exit 1
+          fi
+
+  build_base_image:
+    runs-on: ubuntu-latest
+    container:
+      image: quay.io/singularity/singularity:v3.11.4
+      options: --privileged
+    needs:
+      - check_input_environment
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Build container
+        run: |
+            sudo -E singularity build container/base.sif container/container.def
+
+      - name: Upload base container
+        uses: actions/upload-artifact@v4
+        with:
+            name: base-container
+            path: container/base.sif
+
+  build_test_and_deploy:
+    runs-on: ubuntu-latest
+    environment: Gadi
+    needs:
+      - build_base_image
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Download base container
+        uses: actions/download-artifact@v4
+        with:
+            name: base-container
+            path: container
 
       - name: Setup SSH
         uses: access-nri/actions/.github/actions/setup-ssh@main
