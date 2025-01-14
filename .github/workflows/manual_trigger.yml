@@ -27,25 +27,8 @@ jobs:
           fi
 
   build_base_image:
-    runs-on: ubuntu-latest
-    container:
-      image: quay.io/singularity/singularity:v3.11.4
-      options: --privileged
-    needs:
-      - check_input_environment
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Build container
-        run: |
-            sudo -E singularity build container/base.sif container/container.def
-
-      - name: Upload base container
-        uses: actions/upload-artifact@v4
-        with:
-            name: base-container
-            path: container/base.sif
+    needs: check_input_environment
+    uses: ./.github/workflows/build_base_image.yml
 
   build_test_and_deploy:
     runs-on: ubuntu-latest
