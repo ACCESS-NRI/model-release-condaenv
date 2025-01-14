@@ -1,18 +1,19 @@
-name: Build and test conda env
-
-on: pull_request
-
+name: Deploy conda env # Generic conda environment deploy
+on:
+  push:
+    branches: main
+  # Excludes changes from only environments/payu-dev as this is handled by
+  # the deploy_payu_dev.yml workflow
+    paths-ignore:
+      - 'environments/payu-dev/**'
 jobs:
   generate_matrix:
     uses: ./.github/workflows/get_changed_env.yml
+    with:
+      ignore-environments: '["payu-dev"]'
 
-  build_base_image:
-    needs: generate_matrix
-    if: ${{ needs.generate_matrix.outputs.environments != '[]' }}
-    uses: ./.github/workflows/build_base_image.yml
-
-  build_and_test:
-    needs: [ generate_matrix, build_base_image ]
+  deploy:
+    needs: [ generate_matrix ]
     if: ${{ needs.generate_matrix.outputs.environments != '[]' }}
     strategy:
       matrix:
@@ -22,7 +23,6 @@ jobs:
     uses: ./.github/workflows/build_test_deploy.yml
     with:
       environment: ${{ matrix.environment }}
-      build_and_test: true
-      deploy: false
-      base_image_artifact: ${{ needs.build_base_image.outputs.artifact-name }}
+      build_and_test: false
+      deploy: true
     secrets: inherit

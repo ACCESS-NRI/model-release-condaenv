@@ -1,12 +1,20 @@
 name: Build base singularity image
 on:
   workflow_call:
+    outputs:
+      artifact-name:
+        value: ${{ jobs.build.outputs.artifact-name }}
+        description: Name of the base container artifact
 jobs:
   build:
     runs-on: ubuntu-latest
     container:
       image: quay.io/singularity/singularity:v3.11.4
       options: --privileged
+    env:
+      ARTIFACT_NAME: base-container
+    outputs:
+      artifact-name: ${{ env.ARTIFACT_NAME }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -18,5 +26,5 @@ jobs:
       - name: Upload base container
         uses: actions/upload-artifact@v4
         with:
-            name: base-container
+            name: ${{ env.ARTIFACT_NAME }}
             path: container/base.sif
