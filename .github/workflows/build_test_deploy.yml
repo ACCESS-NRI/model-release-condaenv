@@ -1,0 +1,205 @@
+name: Build, test and deploy conda env
+on:
+  workflow_call:
+    inputs:
+      environment:
+        description: "Environment to update"
+        required: true
+        type: string
+      deploy:
+        description: "Run deploy scripts"
+        type: boolean
+        required: true
+      build_and_test:
+        description: "Run build and test PBS jobs"
+        type: boolean
+        required: true
+      base_image_artifact:
+        description: "Name of base image artifact"
+        type: string
+        required: false
+      environment_artifact:
+        description: "Name of changed environment files artifact"
+        type: string
+        required: false
+
+jobs:
+  get_github_environment:
+    runs-on: ubuntu-latest
+    outputs:
+      name: ${{ steps.github_environment.outputs.name }}
+    steps:
+      - name: Determine release/prerelease environment
+        id: github_environment
+        run: |
+          # Check if environment is prerelease
+          if [[ '${{ vars.PRERELEASE_ENVIRONMENTS }}' =~ '"${{ inputs.environment }}"' ]]; then
+            echo "name=Gadi Prerelease" >> $GITHUB_OUTPUT
+          else
+            echo "name=Gadi" >> $GITHUB_OUTPUT
+          fi
+
+  build_test_and_deploy:
+    runs-on: ubuntu-latest
+    environment: ${{ needs.get_github_environment.outputs.name }}
+    needs: get_github_environment
+    steps:
+      - name: Check ${{ needs.get_github_environment.outputs.name }} Github Environment configuration
+        run: |
+          vars_unset=false
+          if [ -z "${{ vars.ADMIN_DIR }}" ]; then
+            echo "::error::vars.ADMIN_DIR is unset. ADMIN_DIR is the base directory which will contain the staging and logs sub-directories"
+            vars_unset=true
+          fi
+          if [ -z "${{ vars.CONDA_BASE }}" ]; then
+            echo "::error::vars.CONDA_BASE is unset. CONDA_BASE is the base deployment directory which will contain apps and module sub-directories"
+            vars_unset=true
+          fi
+          if [ -z "${{ vars.PROJECT }}" ]; then
+            echo "::error::vars.PROJECT is unset. PROJECT is the project code passed to build+test qsub calls"
+            vars_unset=true
+          fi
+          if [ -z "${{ vars.STORAGE }}" ]; then
+            echo "::error::vars.STORAGE is unset. STORAGE is the storage flags passed to build+test qsub calls"
+            vars_unset=true
+          fi
+          if [ -z "${{ vars.APPS_USERS_GROUP }}" ]; then
+            echo "::error::vars.APPS_USERS_GROUP is unset. APPS_USERS_GROUP is used for setting file permissions"
+            vars_unset=true
+          fi
+          if [ -z "${{ vars.APPS_OWNER }}" ]; then
+            echo "::error::APPS_OWNER is unset. APPS_OWNER is used for setting file permissions"
+            vars_unset=true
+          fi
+          if [ -z "${{ secrets.REPO_PATH }}" ]; then
+            echo "::error::secrets.REPO_PATH is unset. REPO_PATH is the path where this repository is synced to"
+            vars_unset=true
+          fi
+
+          if [ "$vars_unset" == "true" ]; then
+            echo "::error::Required vars in ${{ needs.get_github_environment.outputs.name }} Github Environment are unset."
+            exit 1
+          fi
+
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Download environment files artifact
+        if: inputs.environment_artifact != ''
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ inputs.environment_artifact }}
+          path: environments/${{ inputs.environment }}
+
+      - name: Download base container
+        if: inputs.build_and_test
+        uses: actions/download-artifact@v4
+        with:
+            name: ${{ inputs.base_image_artifact }}
+            path: container
+
+      - name: Setup SSH
+        uses: access-nri/actions/.github/actions/setup-ssh@main
+        id: ssh
+        with:
+          hosts: |
+            ${{ secrets.HOST }}
+            ${{ secrets.HOST_DATA }}
+          private-key: ${{ secrets.SSH_KEY }}
+
+      - name: Create parent repository directories
+        if: inputs.build_and_test
+        run: |
+          ssh ${{ secrets.USER }}@${{ secrets.HOST }} -i ${{ steps.ssh.outputs.private-key-path }} /bin/bash <<'EOT'
+          mkdir -p ${{ secrets.REPO_PATH }}
+          EOT
+
+      - name: Sync repository to deployment environment
+        run: |
+          rsync -e 'ssh -i ${{ steps.ssh.outputs.private-key-path }}' \
+            -avz --delete --exclude=/.git/ --exclude=/.github/ \
+            ./ \
+            ${{ secrets.USER }}@${{ secrets.HOST_DATA }}:${{ secrets.REPO_PATH }}
+
+      - name: Create Admin dirs
+        if: inputs.build_and_test
+        run: |
+          ssh ${{ secrets.USER }}@${{ secrets.HOST }} -i ${{ steps.ssh.outputs.private-key-path }} /bin/bash <<'EOT'
+          set -e
+          export ADMIN_DIR="${{ vars.ADMIN_DIR }}"
+          export CONDA_BASE="${{ vars.CONDA_BASE }}"
+          export APPS_USERS_GROUP="${{ vars.APPS_USERS_GROUP }}"
+          export APPS_OWNER="${{ vars.APPS_OWNER }}"
+          export REPO_PATH="${{ secrets.REPO_PATH }}"
+
+          source "${REPO_PATH}"/scripts/install_config.sh
+          source "${REPO_PATH}"/scripts/functions.sh
+          mkdir -p "${ADMIN_DIR}" "${JOB_LOG_DIR}" "${BUILD_STAGE_DIR}"
+          set_admin_perms "${ADMIN_DIR}" "${JOB_LOG_DIR}" "${BUILD_STAGE_DIR}"
+          EOT
+
+      - name: Build conda environment
+        if: inputs.build_and_test
+        run: |
+          ssh ${{ secrets.USER }}@${{ secrets.HOST }} -i ${{ steps.ssh.outputs.private-key-path }} /bin/bash <<'EOT'
+          set -e
+          export SCRIPT_DIR="${{ secrets.REPO_PATH }}/scripts"
+          export CONDA_ENVIRONMENT="${{ inputs.environment }}"
+          export ADMIN_DIR="${{ vars.ADMIN_DIR }}"
+          export CONDA_BASE="${{ vars.CONDA_BASE }}"
+          export APPS_USERS_GROUP="${{ vars.APPS_USERS_GROUP }}"
+          export APPS_OWNER="${{ vars.APPS_OWNER }}"
+          PROJECT=${{ vars.PROJECT }}
+          STORAGE=${{ vars.STORAGE }}
+
+          source "${SCRIPT_DIR}"/install_config.sh
+          cd "${JOB_LOG_DIR}"
+
+          qsub -N build_"${CONDA_ENVIRONMENT}" -lncpus=1,mem=20GB,walltime=2:00:00,jobfs=50GB,storage="${STORAGE}" \
+            -v SCRIPT_DIR,CONDA_ENVIRONMENT,ADMIN_DIR,CONDA_BASE,APPS_USERS_GROUP,APPS_OWNER \
+            -P "${PROJECT}" -q copyq -Wblock=true -Wumask=037 \
+            "${SCRIPT_DIR}"/build.sh
+
+          EOT
+
+      - name: Test conda environment
+        if: inputs.build_and_test
+        run: |
+          ssh ${{ secrets.USER }}@${{ secrets.HOST }} -i ${{ steps.ssh.outputs.private-key-path }} /bin/bash <<'EOT'
+          set -e
+          export SCRIPT_DIR="${{secrets.REPO_PATH}}/scripts"
+          export CONDA_ENVIRONMENT="${{ inputs.environment }}"
+          export ADMIN_DIR="${{ vars.ADMIN_DIR }}"
+          export CONDA_BASE="${{ vars.CONDA_BASE }}"
+          export APPS_USERS_GROUP="${{ vars.APPS_USERS_GROUP }}"
+          export APPS_OWNER="${{ vars.APPS_OWNER }}"
+          PROJECT=${{ vars.PROJECT }}
+          STORAGE=${{ vars.STORAGE }}
+
+          source "${SCRIPT_DIR}"/install_config.sh
+          cd "${JOB_LOG_DIR}"
+
+          qsub -N test_"${CONDA_ENVIRONMENT}" -lncpus=4,mem=20GB,walltime=0:20:00,jobfs=50GB,storage="${STORAGE}" \
+            -v SCRIPT_DIR,CONDA_ENVIRONMENT,ADMIN_DIR,CONDA_BASE,APPS_USERS_GROUP,APPS_OWNER \
+            -P "${PROJECT}" -Wblock=true -Wumask=037 \
+            "${SCRIPT_DIR}"/test.sh
+
+          EOT
+
+      - name: Deploy conda environment
+        if: inputs.deploy
+        run: |
+          ssh ${{ secrets.USER }}@${{ secrets.HOST }} -i ${{ steps.ssh.outputs.private-key-path }} /bin/bash <<'EOT'
+          set -e
+          export SCRIPT_DIR="${{ secrets.REPO_PATH }}/scripts"
+          export CONDA_ENVIRONMENT="${{ inputs.environment }}"
+          export ADMIN_DIR="${{ vars.ADMIN_DIR }}"
+          export CONDA_BASE="${{ vars.CONDA_BASE }}"
+          export APPS_USERS_GROUP="${{ vars.APPS_USERS_GROUP }}"
+          export APPS_OWNER="${{ vars.APPS_OWNER }}"
+
+          source "${SCRIPT_DIR}"/install_config.sh
+
+          "${SCRIPT_DIR}"/deploy.sh
+
+          EOT

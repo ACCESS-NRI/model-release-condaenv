@@ -8,104 +8,34 @@ on:
         type: string
 
 jobs:
-  build_test_and_deploy:
+  check_input_environment:
     runs-on: ubuntu-latest
-    environment: Gadi
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Setup SSH
-        uses: access-nri/actions/.github/actions/setup-ssh@main
-        id: ssh
-        with:
-          hosts: |
-            ${{ secrets.HOST }}
-            ${{ secrets.HOST_DATA }}
-          private-key: ${{ secrets.SSH_KEY }}
-
-      - name: Sync repository to Gadi
+      - name: Check environment is not payu-dev
         run: |
-          rsync -e 'ssh -i ${{ steps.ssh.outputs.private-key-path }}' \
-            -avz --delete --exclude=/.git/ --exclude=/.github/ \
-            ./ \
-            ${{ secrets.USER }}@${{ secrets.HOST_DATA }}:${{ secrets.REPO_PATH }}
+          if [[ "${{ inputs.environment }}" == "payu-dev" ]]; then
+            echo "::error::Use the custom deploy_payu_dev workflow to deploy payu-dev environment"
+            exit 1
+          fi
 
-      - name: Create Admin dirs on Gadi
-        run: |
-          ssh ${{ secrets.USER }}@${{ secrets.HOST }} -i ${{ steps.ssh.outputs.private-key-path }} /bin/bash <<'EOT'
-          set -e
-          export ADMIN_DIR="${{ vars.ADMIN_DIR }}"
-          export CONDA_BASE="${{ vars.CONDA_BASE }}"
-          export APPS_USERS_GROUP="${{ vars.APPS_USERS_GROUP }}"
-          export APPS_OWNER="${{ vars.APPS_OWNER }}"
+          if [[ ! -d "environments/${{ inputs.environment }}" ]]; then
+            echo "::error::No environment configuration directory found"
+            exit 1
+          fi
 
-          source "${{ secrets.REPO_PATH }}/scripts/install_config.sh"
-          source "${{ secrets.REPO_PATH }}/scripts/functions.sh"
-          mkdir -p "${ADMIN_DIR}" "${JOB_LOG_DIR}" "${BUILD_STAGE_DIR}"
-          set_admin_perms "${ADMIN_DIR}" "${JOB_LOG_DIR}" "${BUILD_STAGE_DIR}"
+  build_base_image:
+    needs: check_input_environment
+    uses: ./.github/workflows/build_base_image.yml
 
-          EOT
-
-      - name: Build conda environment
-        run: |
-          ssh ${{ secrets.USER }}@${{ secrets.HOST }} -i ${{ steps.ssh.outputs.private-key-path }} /bin/bash <<'EOT'
-          set -e
-          export SCRIPT_DIR="${{ secrets.REPO_PATH }}/scripts"
-          export CONDA_ENVIRONMENT="${{ inputs.environment }}"
-          export ADMIN_DIR="${{ vars.ADMIN_DIR }}"
-          export CONDA_BASE="${{ vars.CONDA_BASE }}"
-          export APPS_USERS_GROUP="${{ vars.APPS_USERS_GROUP }}"
-          export APPS_OWNER="${{ vars.APPS_OWNER }}"
-          PROJECT=${{ vars.PROJECT }}
-          STORAGE=${{ vars.STORAGE }}
-
-          source "${SCRIPT_DIR}"/install_config.sh
-          cd "${JOB_LOG_DIR}"
-
-          qsub -N build_"${CONDA_ENVIRONMENT}" -lncpus=1,mem=20GB,walltime=2:00:00,jobfs=50GB,storage="${STORAGE}" \
-            -v SCRIPT_DIR,CONDA_ENVIRONMENT,ADMIN_DIR,CONDA_BASE,APPS_USERS_GROUP,APPS_OWNER \
-            -P "${PROJECT}" -q copyq -Wblock=true -Wumask=037 \
-            "${SCRIPT_DIR}"/build.sh
-
-          EOT
-
-      - name: Test conda environment
-        run: |
-          ssh ${{ secrets.USER }}@${{ secrets.HOST }} -i ${{ steps.ssh.outputs.private-key-path }} /bin/bash <<'EOT'
-          set -e
-          export SCRIPT_DIR="${{secrets.REPO_PATH}}/scripts"
-          export CONDA_ENVIRONMENT="${{ inputs.environment }}"
-          export ADMIN_DIR="${{ vars.ADMIN_DIR }}"
-          export CONDA_BASE="${{ vars.CONDA_BASE }}"
-          export APPS_USERS_GROUP="${{ vars.APPS_USERS_GROUP }}"
-          export APPS_OWNER="${{ vars.APPS_OWNER }}"
-          PROJECT=${{ vars.PROJECT }}
-          STORAGE=${{ vars.STORAGE }}
-
-          source "${SCRIPT_DIR}"/install_config.sh
-          cd "${JOB_LOG_DIR}"
-
-          qsub -N test_"${CONDA_ENVIRONMENT}" -lncpus=4,mem=20GB,walltime=0:20:00,jobfs=50GB,storage="${STORAGE}" \
-            -v SCRIPT_DIR,CONDA_ENVIRONMENT,ADMIN_DIR,CONDA_BASE,APPS_USERS_GROUP,APPS_OWNER \
-            -P "${PROJECT}" -Wblock=true -Wumask=037 \
-            "${SCRIPT_DIR}"/test.sh
-
-          EOT
-
-      - name: Deploy conda environment
-        run: |
-          ssh ${{ secrets.USER }}@${{ secrets.HOST }} -i ${{ steps.ssh.outputs.private-key-path }} /bin/bash <<'EOT'
-          set -e
-          export SCRIPT_DIR="${{ secrets.REPO_PATH }}/scripts"
-          export CONDA_ENVIRONMENT="${{ inputs.environment }}"
-          export ADMIN_DIR="${{ vars.ADMIN_DIR }}"
-          export CONDA_BASE="${{ vars.CONDA_BASE }}"
-          export APPS_USERS_GROUP="${{ vars.APPS_USERS_GROUP }}"
-          export APPS_OWNER="${{ vars.APPS_OWNER }}"
-
-          source "${SCRIPT_DIR}"/install_config.sh
-
-          "${SCRIPT_DIR}"/deploy.sh
-
-          EOT
+  build_test_and_deploy:
+    needs: build_base_image
+    uses: ./.github/workflows/build_test_deploy.yml
+    with:
+      environment: ${{ inputs.environment }}
+      build_and_test: true
+      deploy: true
+      base_image_artifact: ${{ needs.build_base_image.outputs.artifact-name }}
+    secrets: inherit

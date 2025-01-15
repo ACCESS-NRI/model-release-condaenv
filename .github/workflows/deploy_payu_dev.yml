@@ -1,0 +1,117 @@
+name: Deploy payu-dev conda environment
+on:
+  schedule:
+   - cron: '0 21 * * *' # Runs every morning at 7AM AEST
+  workflow_dispatch: # Allows manual triggering
+  push:
+    branches:
+      - main
+    paths:
+      - 'environments/payu-dev/**' # Run when payu-dev environment is updated
+env:
+  # This is the conda environment (as opposed to the GitHub Environment)
+  environment: payu-dev
+jobs:
+  check_for_payu_updates:
+    name: Check for updates to payu-org/payu repository
+    runs-on: ubuntu-latest
+    outputs:
+      commits-count: ${{ steps.check-payu-commits.outputs.commits-count }}
+      last-commit-hash: ${{ steps.check-payu-commits.outputs.latest-commit-hash }}
+    steps:
+      - name: Checkout current repository
+        uses: actions/checkout@v4
+
+      - name: Get last workflow run time
+        id: last-run-time
+        env:
+          GH_TOKEN: ${{ secrets.GH_TOKEN }}
+        run: |
+          # Fetch the last successful workflow run time
+          last_run_time=$(gh run list --status success --workflow deploy_payu_dev.yml --json updatedAt --jq .[0].updatedAt)
+
+          echo "Last successful workflow run time: $last_run_time"
+          echo "last-run-time=$last_run_time" >> $GITHUB_OUTPUT
+
+      - name: Checkout payu repository
+        uses: actions/checkout@v4
+        with:
+          repository: payu-org/payu
+          path: payu
+          ref: master
+
+      - name: Check commits in payu repository
+        id: check-payu-commits
+        run: |
+          # Check for any commits since last successful runtime
+          last_run_time="${{ steps.last-run-time.outputs.last-run-time }}"
+          commits_count=$(git -C ./payu rev-list --count --since="$last_run_time" master)
+
+          # Get latest commit hash
+          latest_commit_hash=$(git -C ./payu rev-parse --short HEAD)
+
+          echo "::notice::Number of new commits since last run: $commits_count, latest commit hash: $latest_commit_hash"
+
+          echo "commits-count=$commits_count" >> $GITHUB_OUTPUT
+          echo "latest-commit-hash=$latest_commit_hash" >> $GITHUB_OUTPUT
+
+  build_base_image:
+    uses: ./.github/workflows/build_base_image.yml
+
+  modify_environment_files:
+    name: Update version in environment files
+    if: >
+      needs.check_for_payu_updates.outputs.commits-count > 0 ||
+      github.event_name == 'push' ||
+      github.event_name == 'workflow_dispatch'
+    needs:
+      - check_for_payu_updates
+    runs-on: ubuntu-latest
+    env:
+      ARTIFACT_NAME: payu-dev-environment
+    outputs:
+      artifact_name: ${{ env.ARTIFACT_NAME }}
+      environment: ${{ env.environment }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Get Payu Version
+        id: payu
+        run: |
+          # Set version to datetime and last short commit hash of payu
+          NOW=$(date -u +"%Y%m%dT%H%M%SZ")
+          COMMIT_HASH=${{ needs.check_for_payu_updates.outputs.last-commit-hash }}
+          VERSION="dev-$NOW-$COMMIT_HASH"
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Update Environment file
+        run: |
+          # Replace payu commit hash in environment file with latest commit hash
+          PAYU_URL="git+https://github.com/payu-org/payu.git"
+          sed -i "s|$PAYU_URL@.*$|$PAYU_URL@${{ needs.check_for_payu_updates.outputs.last-commit-hash }}|g" environments/${{ env.environment }}/environment.yml
+
+      - name: Update Version in config file
+        run: |
+          # Update VERSION_TO_MODIFY in payu-dev config file
+          sed -i "s|^export VERSION_TO_MODIFY=.*$|export VERSION_TO_MODIFY=${{ steps.payu.outputs.version }}|g" environments/${{ env.environment }}/config.sh
+
+      - name: Upload changed environment files
+        uses: actions/upload-artifact@v4
+        with:
+            name: ${{ env.ARTIFACT_NAME }}
+            path: environments/${{ env.environment }}/*
+
+  build_test_and_deploy:
+    name: Build, test and deploy payu-dev
+    needs:
+      - build_base_image
+      - check_for_payu_updates
+      - modify_environment_files
+    uses: ./.github/workflows/build_test_deploy.yml
+    with:
+      environment: ${{ needs.modify_environment_files.outputs.environment }}
+      build_and_test: true
+      deploy: true
+      base_image_artifact: ${{ needs.build_base_image.outputs.artifact-name }}
+      environment_artifact: ${{ needs.modify_environment_files.outputs.artifact_name }}
+    secrets: inherit
