@@ -49,7 +49,6 @@ Each conda environment has a subdirectory in `environments/` with the same name 
 
 - **`config.sh`**:
  This script sets up environment variables required for the build, test, and deploy scripts. It requires at least the following to be set:
-  - `ENVIRONMENT` - Name of the environment, e.g. `payu`
   - `FULLENV` - Name of the SquashFS file and script directories related to an environment version, e.g. `payu-1.1.6`
   - `MODULE_VERSION` - By default the module name is `conda` and so if the `MODULE_VERSION` is `payu-1.1.6`, the module can be loaded by `module load conda/payu-1.1.6`. Note that for payu, pre-existing modules were loaded using `module load payu/1.1.6`. To maintain this naming scheme, `MODULE_VERSION` is set to `1.1.6`, and `CONDA_MODULE_PATH` overrides the default variable in `/scripts/install_config.sh`.
 
@@ -73,10 +72,12 @@ This script runs at the end of the general deploy script after the environment c
 7. Once the CI jobs have been completed successfully and the Pull Request has also been approved, the branch can be merged, and then the Deploy job will request to run again on the `Gadi` Github Environment.
 8. Once deployed, check loading the new module with:
 
-```shell
-module use /g/data/vk83/modules
-module load payu/<VERSION>
-```
+    ```shell
+    module use /g/data/vk83/modules
+    module load payu/<VERSION>
+    ```
+
+    Where `<VERSION>` is the version installed.
 
 ### Updating the `payu-dev` environment
 
@@ -92,11 +93,12 @@ To modify the environment via a Pull Request:
 5. When the Pull Request is merged, a custom `payu-dev` deploy workflow will run which will re-run the build and test scripts with the generated environment version before running the deploy scripts. This is to ensure the environment deployed contains the latest changes from the `payu` repository.
 8. Once deployed, check loading the new module with:
 
-```shell
-module use /g/data/vk83/prerelease/modules
-module load payu/dev
-```
-Check the `payu/dev` environment contains the updates specified in the merge pull-request.
+    ```shell
+    module use /g/data/vk83/prerelease/modules
+    module load payu/dev
+    ```
+
+    Check the `payu/dev` environment contains the updates specified in the merge pull-request.
 
 ## Deployed Conda Environment Components
 
