@@ -43,7 +43,7 @@ Below contains instructions for developers on updating the conda environments an
 
 ### Environment Directory Structure
 
-Each conda environment should have the following files under its subdirectory in `environments/`:
+Each conda environment has a subdirectory in `environments/` with the same name as the environment. There should be the following files in each subdirectory `:
 
 - **`environment.yml`**: The conda environment file
 
@@ -66,7 +66,7 @@ This script runs at the end of the general deploy script after the environment c
 
 1. Clone this repository and create and checkout a new branch.
 2. Modify the payu version in the conda environment file - `environments/payu/environment.yml`. If payu version is not set, it'll use the latest payu version in [`access-nri` conda channel](https://anaconda.org/accessnri/payu).
-3. Modify `VERSION_TO_MODIFY` and `STABLE_VERSION` in `environments/payu/config.sh`. `VERSION_TO_MODIFY` builds a payu environment with this version, and `STABLE_VERSION` is used in deployment to set the default version alias for the payu module.
+3. Modify `VERSION_TO_MODIFY` and `STABLE_VERSION` in `environments/payu/config.sh`. `VERSION_TO_MODIFY` builds a payu environment with this version, and `STABLE_VERSION` is used in deployment to set the default version alias for the payu module. In most cases these should be set to the same value.
 4. Add any new packages or versions to `environment.yml` required for the next release.
 5. Push the changes and open a Pull Request to the `main` branch of this repository `ACCESS-NRI/model-release-condaenv` (not the upstream `coecms/cms-conda-singularity` repository).
 6. Once a Pull Request is open, it will request a sign-off to run the Build and Test job on the `Gadi` Github Environment. These jobs are performed in temporary locations on Gadi, and so will not affect the production environments.
@@ -75,7 +75,7 @@ This script runs at the end of the general deploy script after the environment c
 
 ```shell
 module use /g/data/vk83/modules
-module load payu/VERSION
+module load payu/<VERSION>
 ```
 
 ### Updating the `payu-dev` environment
@@ -96,6 +96,7 @@ To modify the environment via a Pull Request:
 module use /g/data/vk83/prerelease/modules
 module load payu/dev
 ```
+Check the `payu/dev` environment contains the updates specified in the merge pull-request.
 
 ## Deployed Conda Environment Components
 
@@ -164,7 +165,7 @@ General overview of the bash scripts used in the Github workflows:
 
 ### Pull Request Workflow (`pull_request.yml`)
 
-On a Pull Request to the `main` branch of this repository, it will check for any changes to any changes to conda environment configuration files (under `environments/`). If changes are detected, it will build a base singularity container on a Github runner, and request a signoff to deployment to a Github Environment. Once approved, it will rsync the repository and the built base container to Gadi, then run the build and test scripts which are submitted as PBS jobs.
+On a Pull Request to the `main` branch of this repository, it will check for changes to any conda environment configuration files (under `environments/`). If changes are detected, it will build a base singularity container on a Github runner, and request a signoff to deployment to a Github Environment. Once approved, it will rsync the repository and the built base container to Gadi, then run the build and test scripts which are submitted as PBS jobs.
 
 ### Deploy Workflow (`deploy_conda.yml`)
 
