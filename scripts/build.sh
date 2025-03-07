@@ -113,13 +113,23 @@ function inner() {
     done
     popd
 
+    ### Set up the environment activate script
+    cat > "${CONDA_INSTALLATION_PATH}/envs/${FULLENV}/bin/activate" <<EOF
+export PATH=${CONDA_INSTALLATION_PATH}/envs/${FULLENV}/bin:\$PATH
+for config in "${CONDA_INSTALLATION_PATH}/envs/${FULLENV}/etc/conda/activate.d/*.sh"; do
+    if [ -r "\$config" ]; then
+        source "\$config"
+    fi
+done
+EOF
+
     ### Update any supporting infrastructure
     copy_if_changed "${SCRIPT_DIR}"/launcher.sh "${CONDA_SCRIPT_PATH}"/launcher.sh
     for override in "${SCRIPT_DIR}"/overrides/*; do
         copy_if_changed "${override}" "${CONDA_SCRIPT_PATH}"/overrides/"${override##*/}"
     done
     mkdir -p "${CONDA_MODULE_PATH}"
-    copy_and_replace "${SCRIPT_DIR}"/../modules/common_v3 "${CONDA_MODULE_PATH}"/.common_v3       CONDA_BASE APPS_SUBDIR CONDA_INSTALL_BASENAME SCRIPT_SUBDIR
+    copy_and_replace "${SCRIPT_DIR}"/../modules/"${COMMON_MODULEFILE}" "${CONDA_MODULE_PATH}"/."${COMMON_MODULEFILE}"       CONDA_BASE APPS_SUBDIR CONDA_INSTALL_BASENAME SCRIPT_SUBDIR
     copy_and_replace "${SCRIPT_DIR}"/launcher_conf.sh     "${CONDA_SCRIPT_PATH}"/launcher_conf.sh CONDA_BASE APPS_SUBDIR CONDA_INSTALL_BASENAME
 
     ### Create symlink tree
@@ -225,7 +235,7 @@ fi
 
 
 if [[ "${DO_UPDATE}" == "--install" ]]; then
-    ln -s .common_v3 "${CONDA_OUTER_BASE}"/"${MODULE_SUBDIR}"/"${MODULE_NAME}"/"${MODULE_VERSION}"
+    ln -s ."${COMMON_MODULEFILE}" "${CONDA_OUTER_BASE}"/"${MODULE_SUBDIR}"/"${MODULE_NAME}"/"${MODULE_VERSION}"
 fi
 
 pushd "${CONDA_TEMP_PATH}"
