@@ -121,57 +121,6 @@ function symlink_atomic_update() {
     set_apps_perms "${link_name}"
 }
 
-function construct_module_insert() {
-
-    singularity_exec="${1}"
-    overlay_path="${2}"
-    container_path="${3}"
-    squashfs_path="${4}"
-    env_script="${5}"
-    rootdir="${6}"
-    condaenv="${7}"
-    script_path="${8}"
-    module_path="${9}"
-
-    declare -a discard_paths=( "/bin" "/usr/bin" "/condabin" )
-    declare -a discard_vars=( "MODULEPATH" "_" "PWD" "SHLVL" )
-
-    while read line; do
-        key="${line%%=*}"
-        value="${line#*=}"
-        ### Skip these environment variables
-        in_array "${discard_vars[@]}" "${key}" && continue
-        ### Prepend to these variables
-        if [[ $key =~ .PATH$ ]]; then
-            echo prepend-path $key $value
-        ### Prepend to Modulefile variables that work like a path
-        elif in_array "_LMFILES_" "LOADEDMODULES" "${key}"; then
-            echo prepend-path $key $value
-        ### Treat path specially - remove system paths and retain order
-        elif [[ "${key}" == "PATH" ]]; then
-            while IFS= read -r -d: entry; do
-                in_array "${discard_paths[@]}" "${entry}" && continue
-                if [[ $entry =~ $condaenv ]]; then
-                    echo prepend-path PATH $script_path
-                else
-                    echo prepend-path PATH $entry
-                fi
-                echo prepend-path SINGULARITYENV_PREPEND_PATH $entry
-            done<<<"${value%:}:"
-        elif [[ "${key}" =~ ^alias\  ]]; then
-            echo set-alias "${key//alias /}" "${value//\'/}"
-        else
-            if [[ "${value}" ]]; then
-                echo setenv $key \"$value\"
-            else
-                echo setenv $key \"\"
-            fi
-        fi
-
-    done < <( "${singularity_exec}" -s exec --bind /etc,/half-root,/local,/ram,/run,/system,/usr,/var/lib/sss,/var/run/munge,/var/lib/rpm,"${overlay_path}":/g --overlay="${squashfs_path}"  "${container_path}" /bin/env -i "${env_script}" "${rootdir}" "${condaenv}" ) > "${module_path}"
-
-}
-
 function copy_and_replace() {
     ### Copies the file in $1 to the location in $2 and replaces any occurence
     ### of __${3}__, __${4}__... with the contents of those environment variables
