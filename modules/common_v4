@@ -6,6 +6,11 @@ set package __CONDA_INSTALL_BASENAME__
 # Prevent running this module with a running payu module
 conflict payu
 
+# Warn if another conda environment is already loaded
+if { [info exists env(CONDA_DEFAULT_ENV)] } {
+    puts stderr "Warning: Another conda environment is currently loaded (CONDA_DEFAULT_ENV: $env(CONDA_DEFAULT_ENV))"
+}
+
 # Name of this module's environment
 lassign [split [module-info name] {/}] module_name module_version
 set condaenv "${module_version}"
