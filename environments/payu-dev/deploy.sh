@@ -24,9 +24,12 @@ for old_version in $old_versions; do
         continue
     fi
 
-    # Remove modulefiles and module insert
+    # Remove modulefile
     unlink "${CONDA_MODULE_PATH}"/"${old_version}"
-    rm "${CONDA_MODULE_PATH}"/."${old_version}"
+    # Remove moduefile insert if it exists
+    if [ -f "${CONDA_MODULE_PATH}"/."${old_version}" ]; then
+        rm "${CONDA_MODULE_PATH}"/."${old_version}"
+    fi
     # Remove launcher script directories
     rm -rf "${CONDA_SCRIPT_PATH}"/"${ENVIRONMENT}"-"${old_version}".d
     # Remove squashfs file
