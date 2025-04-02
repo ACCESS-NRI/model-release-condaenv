@@ -161,5 +161,38 @@ bind_str=${bind_str%,}
 
 $debug "binding args= " ${bind_str}
 
-$debug "Singularity invocation: " "$SINGULARITY_BINARY_PATH" -s exec --bind "${bind_str}" ${overlay_args} "${CONTAINER_PATH}" "${cmd_to_run[@]}"
-"$SINGULARITY_BINARY_PATH" -s exec --bind "${bind_str}" ${overlay_args} "${CONTAINER_PATH}" "${cmd_to_run[@]}"
+function singularity_exec () {
+    $debug "Singularity invocation: " "$SINGULARITY_BINARY_PATH" -s exec --bind "${bind_str}" ${overlay_args} "${CONTAINER_PATH}" "${cmd_to_run[@]}"
+    "$SINGULARITY_BINARY_PATH" -s exec --bind "${bind_str}" ${overlay_args} "${CONTAINER_PATH}" "${cmd_to_run[@]}"
+}
+
+# Retry singularity exec command once
+MAX_TRY=2
+for TRY in $(seq 1 $MAX_TRY); do
+    # Run the singularity exec command. Capture stderr for error handling
+    { error_msg=$(singularity_exec 2>&1 1>&$out); exit_code=$?; } {out}>&1
+    # Close additional file descriptor
+    {out}>&-
+
+    # Write to stderr
+    echo "${error_msg}" 1>&2
+
+    if [[ $exit_code == 0 ]]; then
+        # Successful execution
+        break
+    elif [[ $exit_code == 255 ]] && [[ $error_msg =~ "container creation failed" ]]; then
+        # Transient container failure with error code 255: Retry
+        echo "Singularity invocation attempt ${TRY} failed."
+
+        if [[ $TRY < $MAX_TRY ]]; then
+            echo "Re-trying singularity invocation."
+        else
+            echo "Maximum number of ${MAX_TRY} singularity invocation attempts reached. Exiting."
+            exit $exit_code
+        fi
+
+    else
+        # Other error: Exit normally
+        exit $exit_code
+    fi
+done
