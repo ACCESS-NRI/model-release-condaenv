@@ -161,6 +161,9 @@ bind_str=${bind_str%,}
 
 $debug "binding args= " ${bind_str}
 
+# Disable using local python libraries inside the container
+export SINGULARITYENV_PYTHONNOUSERSITE="x"
+
 function singularity_exec () {
     $debug "Singularity invocation: " "$SINGULARITY_BINARY_PATH" -s exec --bind "${bind_str}" ${overlay_args} "${CONTAINER_PATH}" "${cmd_to_run[@]}"
     "$SINGULARITY_BINARY_PATH" -s exec --bind "${bind_str}" ${overlay_args} "${CONTAINER_PATH}" "${cmd_to_run[@]}"
