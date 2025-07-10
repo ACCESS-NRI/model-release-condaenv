@@ -7,4 +7,6 @@ else
     export CONDA_BASE_ENV_PATH="__CONDA_BASE__/__APPS_SUBDIR__/__CONDA_INSTALL_BASENAME__"
 fi
 
+export PAYU_TELEMETRY_CONFIG="__PAYU_TELEMETRY_CONFIG__"
+
 declare -a bind_dirs=( "/etc" "/half-root" "/local" "/ram" "/run" "/system" "/usr" "/var/lib/sss" "/var/run/munge" "/sys/fs/cgroup" "/iointensive" )
