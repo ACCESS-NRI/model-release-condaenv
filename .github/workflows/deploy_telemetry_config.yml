@@ -1,0 +1,114 @@
+name: Deploy telemetry configuration
+on:
+  workflow_dispatch: # Allows manual triggering (incase environment variables are updated)
+  push:
+    branches:
+      - main
+    paths:
+      - 'telemetry/payu' # Run when telemetry configuration is updated
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: Gadi
+    steps:
+      - name: Check Github Environment configuration
+        run: |
+          vars_unset=false
+          if [ -z "${{ secrets.PAYU_TELEMETRY_URL }}" ]; then
+            echo "::error::secrets.PAYU_TELEMETRY_URL is unset. PAYU_TELEMETRY_URL is the URL for the telemetry requests"
+            vars_unset=true
+          fi
+          if [ -z "${{ secrets.PAYU_TELEMETRY_TOKEN }}" ]; then
+            echo "::error::secrets.PAYU_TELEMETRY_TOKEN is unset. PAYU_TELEMETRY_TOKEN is the auth token for sending requests to the telemetry service"
+            vars_unset=true
+          fi
+          if [ -z "${{ vars.PAYU_TELEMETRY_SERVICE_NAME }}" ]; then
+            echo "::error::vars.PAYU_TELEMETRY_SERVICE_NAME is unset. PAYU_TELEMETRY_SERVICE_NAME is the name of the service in telemetry requests"
+            vars_unset=true
+          fi
+          if [ -z "${{ vars.PAYU_TELEMETRY_HOST }}" ]; then
+            echo "::error::vars.PAYU_TELEMETRY_HOST is unset. PAYU_TELEMETRY_HOST is used in headers for telemetry requests"
+            vars_unset=true
+          fi
+          if [ -z "${{ vars.HOSTNAME }}" ]; then
+            echo "::error::vars.HOSTNAME is unset. HOSTNAME is used to identify the HPC environment"
+            vars_unset=true
+          fi
+          if [ -z "${{ secrets.PAYU_TELEMETRY_CONFIG }}" ]; then
+            echo "::error::secrets.PAYU_TELEMETRY_CONFIG is unset. PAYU_TELEMETRY_CONFIG is the path to the telemetry configuration file"
+            vars_unset=true
+          fi
+          if [ -z "${{ secrets.REPO_PATH }}" ]; then
+            echo "::error::secrets.REPO_PATH is unset. REPO_PATH is the path where this repository is synced to"
+            vars_unset=true
+          fi
+          if [ -z "${{ vars.APPS_USERS_GROUP }}" ]; then
+            echo "::error::vars.APPS_USERS_GROUP is unset. APPS_USERS_GROUP is used for setting file permissions"
+            vars_unset=true
+          fi
+          if [ -z "${{ vars.APPS_OWNER }}" ]; then
+            echo "::error::APPS_OWNER is unset. APPS_OWNER is used for setting file permissions"
+            vars_unset=true
+          fi
+
+          if [ "$vars_unset" == "true" ]; then
+            echo "::error::Required vars in Gadi Github Environment are unset."
+            exit 1
+          fi
+        
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup SSH
+        uses: access-nri/actions/.github/actions/setup-ssh@main
+        id: ssh
+        with:
+          hosts: |
+            ${{ secrets.HOST }}
+            ${{ secrets.HOST_DATA }}
+          private-key: ${{ secrets.SSH_KEY }}
+
+      - name: Create parent repository directories
+        run: |
+          ssh ${{ secrets.USER }}@${{ secrets.HOST }} -i ${{ steps.ssh.outputs.private-key-path }} /bin/bash <<'EOT'
+          mkdir -p ${{ secrets.REPO_PATH }}
+          EOT
+
+      - name: Sync repository to deployment environment
+        run: |
+          rsync -e 'ssh -i ${{ steps.ssh.outputs.private-key-path }}' \
+            -avz --delete --exclude=/.git/ --exclude=/.github/ \
+            ./ \
+            ${{ secrets.USER }}@${{ secrets.HOST_DATA }}:${{ secrets.REPO_PATH }}
+      
+      - name: Create telemetry configuration file
+        run: |
+          ssh ${{ secrets.USER }}@${{ secrets.HOST_DATA }} -i ${{ steps.ssh.outputs.private-key-path }} /bin/bash <<'EOT'
+          # Paths to source and target directories
+          REPO_PATH="${{ secrets.REPO_PATH }}"
+          PAYU_TELEMETRY_CONFIG="${{ secrets.PAYU_TELEMETRY_CONFIG }}"
+
+          # Export environment variables for telemetry configuration file
+          export PAYU_TELEMETRY_URL="${{ secrets.PAYU_TELEMETRY_URL }}"
+          export PAYU_TELEMETRY_TOKEN="${{ secrets.PAYU_TELEMETRY_TOKEN }}"
+          export PAYU_TELEMETRY_SERVICE_NAME="${{ vars.PAYU_TELEMETRY_SERVICE_NAME }}"
+          export PAYU_TELEMETRY_HOST="${{ vars.PAYU_TELEMETRY_HOST }}"
+          export HOSTNAME="${{ vars.HOSTNAME }}"
+
+          # Environment variables for file files permissions
+          export APPS_USERS_GROUP="${{ vars.APPS_USERS_GROUP }}"
+          export APPS_OWNER="${{ vars.APPS_OWNER }}"
+
+          # Create the telemetry configuration directory if it doesn't exist
+          mkdir -p "${PAYU_TELEMETRY_CONFIG}"
+
+          # Load functions
+          source "${REPO_PATH}"/scripts/functions.sh
+
+          # Copy 1-0-0.json from the repository to the telemetry config dir
+          # and substitute the placeholders with the environment variables
+          copy_and_replace "${REPO_PATH}"/telemetry/payu/1-0-0.json "${PAYU_TELEMETRY_CONFIG}"/1-0-0.json PAYU_TELEMETRY_URL PAYU_TELEMETRY_TOKEN PAYU_TELEMETRY_SERVICE_NAME PAYU_TELEMETRY_HOST HOSTNAME
+
+          # Set app permissions on the telemetry configuration file
+          set_apps_perms "${PAYU_TELEMETRY_CONFIG}"/1-0-0.json
+          EOT
