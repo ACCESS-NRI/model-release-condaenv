@@ -1,0 +1,7 @@
+{
+  "telemetry_url": "__PAYU_TELEMETRY_URL__",
+  "telemetry_token": "__PAYU_TELEMETRY_TOKEN__",
+  "telemetry_service_name": "__PAYU_TELEMETRY_SERVICE_NAME__",
+  "telemetry_host": "__PAYU_TELEMETRY_HOST__",
+  "hostname": "___HOSTNAME__"
+}
