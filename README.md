@@ -183,6 +183,10 @@ This workflow runs:
 
 It will build a base singularity container on a Github runner. Then it will generate the version for the environment with the format `dev-$DATETIME-$GIT_COMMIT_HASH`, and modify the versions in the `payu-dev` environment files. It will then request signoff to the `Gadi Prerelease` environment. Once approved, it will rsync the repository with the modified environment files down to Gadi. It will re-run the build and test scripts so the built files use the generated dev version. It'll then deploy all required files to the Prerelease location on Gadi. It'll set `payu/dev` module alias to point to the deployed module version. Finally, it'll delete all old versions of `payu/dev-*` environment components, except the recently deployed version, and the previous `payu/dev` version which could be being actively used at the time of the deployment.
 
+### Deploy Payu telemetry configuration (`deploy_telemetry_config.yml`)
+
+This workflow runs either on a manual trigger or when the `telemetry/payu` files have been modified. It creates and substitutes the payu telemetry configuration saved to the Github Environment into a file and deploys it to a location on Gadi.
+
 ## Github Configuration
 
 There are currently two Github Environments for deployment: `Gadi` and `Gadi Prerelease`. Any build, test, and/or deploy workflows that need to run on Gadi, currently require a sign-off.
@@ -209,3 +213,11 @@ Variables required for Build/Test/Deploy workflows:
 - `vars.APPS_OWNER`: User with read, write, and execute permissions for installed files
 - `vars.PROJECT`: Project code used for build and test PBS jobs (e.g. `tm70`)
 - `vars.STORAGE`: Storage directives for build and test PBS jobs (e.g. `gdata/vk83`)
+- `secrets.PAYU_TELEMETRY_CONFIG`: Sets environment variable for the Payu telemetry configuration path which is passed to the launcher script configuration. This means this environment variable is set every time the container runs.
+
+Additional variables required for Payu telemetry configuration workflow:
+- `secrets.PAYU_TELEMETRY_URL`: Url used for Payu telemetry requests. This will point to a persistent session.
+- `secrets.PAYU_TELEMETRY_TOKEN`: Token for the Payu telemetry requests.
+- `vars.PAYU_TELEMETRY_HOST`: Host for the Payu telemetry requests.
+- `vars.PAYU_TELEMETRY_SERVICE_NAME`: Name of the Payu service in ACCESS-NRI tracking services.
+- `vars.HOSTNAME`: Name of HPC environment to add to telemetry information.
