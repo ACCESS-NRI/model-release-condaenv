@@ -84,6 +84,8 @@ jobs:
       - name: Create telemetry configuration file
         run: |
           ssh ${{ secrets.USER }}@${{ secrets.HOST_DATA }} -i ${{ steps.ssh.outputs.private-key-path }} /bin/bash <<'EOT'
+          set -e
+
           # Paths to source and target directories
           REPO_PATH="${{ secrets.REPO_PATH }}"
           PAYU_TELEMETRY_CONFIG="${{ secrets.PAYU_TELEMETRY_CONFIG }}"
