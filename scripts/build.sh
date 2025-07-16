@@ -119,16 +119,24 @@ function inner() {
         copy_if_changed "${override}" "${CONDA_SCRIPT_PATH}"/overrides/"${override##*/}"
     done
     mkdir -p "${CONDA_MODULE_PATH}"
-    copy_and_replace "${SCRIPT_DIR}"/../modules/common_v3 "${CONDA_MODULE_PATH}"/.common_v3       CONDA_BASE APPS_SUBDIR CONDA_INSTALL_BASENAME SCRIPT_SUBDIR
+    copy_and_replace "${SCRIPT_DIR}"/../modules/"${COMMON_MODULEFILE}" "${CONDA_MODULE_PATH}"/."${COMMON_MODULEFILE}" CONDA_BASE APPS_SUBDIR CONDA_INSTALL_BASENAME SCRIPT_SUBDIR
     copy_and_replace "${SCRIPT_DIR}"/launcher_conf.sh     "${CONDA_SCRIPT_PATH}"/launcher_conf.sh CONDA_BASE APPS_SUBDIR CONDA_INSTALL_BASENAME CONDA_SCRIPT_PATH FULLENV
 
     ### Create symlink tree
     mkdir -p "${CONDA_SCRIPT_PATH}"/"${FULLENV}".d/{bin,overrides}
     cp "${CONDA_SCRIPT_PATH}"/{launcher.sh,launcher_conf.sh} "${CONDA_SCRIPT_PATH}"/"${FULLENV}".d/bin
     pushd "${CONDA_SCRIPT_PATH}"/"${FULLENV}".d/bin
-    for i in $( ls "${ENV_INSTALLATION_PATH}"/bin ); do
-        ln -s launcher.sh $i
-    done
+    if [ "${#launcher_commands[@]}" -gt 0 ]; then
+        # Only create launcher symlinks for the specified commands
+        for cmd in "${launcher_commands[@]}"; do
+            ln -s launcher.sh $cmd
+        done
+    else
+        # Create a launcher symlinks for each executable in the bin directory
+        for i in $( ls "${ENV_INSTALLATION_PATH}"/bin ); do
+            ln -s launcher.sh $i
+        done
+    fi
 
     ### Add in the outside commands
     for i in "${outside_commands_to_include[@]}"; do
@@ -225,7 +233,7 @@ fi
 
 
 if [[ "${DO_UPDATE}" == "--install" ]]; then
-    ln -s .common_v3 "${CONDA_OUTER_BASE}"/"${MODULE_SUBDIR}"/"${MODULE_NAME}"/"${MODULE_VERSION}"
+    ln -s ."${COMMON_MODULEFILE}" "${CONDA_OUTER_BASE}"/"${MODULE_SUBDIR}"/"${MODULE_NAME}"/"${MODULE_VERSION}"
 fi
 
 pushd "${CONDA_TEMP_PATH}"

@@ -37,6 +37,9 @@ export CONDA_INSTALL_BASENAME="base_conda" #TODO: Eventually replace with conda
 # so payu modules are named payu/$MODULE_VERSION (e.g. payu/1.1.5)
 export MODULE_NAME="conda"
 
+# Common modulefile to use for conda environments
+export COMMON_MODULEFILE="common_cmd_v1"
+
 ### Derived locations - extra '.' for arcane rsync magic
 export CONDA_SCRIPT_PATH="${CONDA_BASE}"/./"${SCRIPT_SUBDIR}"
 export CONDA_MODULE_PATH="${CONDA_BASE}"/./"${MODULE_SUBDIR}"/"${MODULE_NAME}"
