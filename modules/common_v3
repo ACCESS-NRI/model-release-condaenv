@@ -43,5 +43,3 @@ if { [ file exists $mydir/.$module_version ] } {
 
 ### Extra env to get other things working
 setenv OMPI_MCA_orte_launch_agent $myscripts/orted
-setenv MAMBA_ROOT_PREFIX $prefix/$package
-setenv CONDA_EXE $prefix/$package/bin/micromamba
