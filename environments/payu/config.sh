@@ -8,8 +8,8 @@
 ### outside_files_to_copy
 
 ### Optional config for custom deploy script
-export VERSION_TO_MODIFY=1.1.6
-export STABLE_VERSION=1.1.6
+export VERSION_TO_MODIFY=1.1.7
+export STABLE_VERSION=1.1.7
 
 ### Version settings
 export ENVIRONMENT=payu
