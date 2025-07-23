@@ -180,7 +180,7 @@ function copy_and_replace() {
     shift 2
     sedstr=''
     for arg in "$@"; do
-        sedstr="${sedstr}s:__${arg}__:${!arg}:g;"
+        sedstr="${sedstr}s|__${arg}__|${!arg}|g;"
     done
     
     if [[ "${sedstr}" ]]; then
