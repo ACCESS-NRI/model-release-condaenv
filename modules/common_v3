@@ -40,6 +40,3 @@ if { [ file exists $mydir/.$module_version ] } {
     puts stderr "ERROR! Environment spec is missing!"
     exit 1
 }
-
-### Extra env to get other things working
-setenv OMPI_MCA_orte_launch_agent $myscripts/orted
