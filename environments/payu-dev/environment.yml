@@ -18,3 +18,4 @@ dependencies:
   - mule
   - um2nc
   - accessnri::yamanifest
+  - netcdf4=*=nompi_*
