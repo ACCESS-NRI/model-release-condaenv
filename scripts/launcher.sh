@@ -148,7 +148,17 @@ $debug "SINGULARITYENV_PREPEND_PATH= " ${SINGULARITYENV_PREPEND_PATH}
 
 overlay_args=""
 while IFS= read -r -d: i; do
-    overlay_args="${overlay_args}--overlay=${i} "
+    if [[ $i == "${CONDA_BASE}.sqsh" ]] && [[ -d "${PBS_JOBFS}" ]]; then
+        # Copy environment squashfs to jobfs if it exists. This is to try
+        # avoid transient lustre file system issues
+        mkdir -p "${PBS_JOBFS}/singularity_conda_env"
+        env_name=$( basename "${CONDA_BASE}" )
+        new_overlay="${PBS_JOBFS}/singularity_conda_env/${env_name}.sqsh"
+        rsync --times "${i}" "${new_overlay}"
+        overlay_args="${overlay_args}--overlay=${new_overlay} "
+    else
+        overlay_args="${overlay_args}--overlay=${i} "
+    fi
 done<<<"${CONTAINER_OVERLAY_PATH%:}:"
 
 $debug "overlay_args= " ${overlay_args}
@@ -167,9 +177,23 @@ export SINGULARITYENV_PYTHONNOUSERSITE="x"
 # Disable Python's bytecode cache inside the container
 export SINGULARITYENV_PYTHONDONTWRITEBYTECODE="1"
 
+if [[ -d "${PBS_JOBFS}" ]]; then
+    # Copy container to jobfs if it exists. Similarly to squashfs file, this
+    # is to try avoid transient lustre file system issues
+    mkdir -p "${PBS_JOBFS}/singularity_conda_env"
+    container_file=$( basename "${CONTAINER_PATH}" )
+    new_container="${PBS_JOBFS}/singularity_conda_env/${container_file}"
+    rsync --times "${CONTAINER_PATH}" "${new_container}"
+    container_path="${new_container}"
+else
+    container_path="${CONTAINER_PATH}"
+fi
+
+$debug "container_path= " ${container_path}
+
 function singularity_exec () {
-    $debug "Singularity invocation: " "$SINGULARITY_BINARY_PATH" -s exec --bind "${bind_str}" ${overlay_args} "${CONTAINER_PATH}" "${cmd_to_run[@]}"
-    "$SINGULARITY_BINARY_PATH" -s exec --bind "${bind_str}" ${overlay_args} "${CONTAINER_PATH}" "${cmd_to_run[@]}"
+    $debug "Singularity invocation: " "$SINGULARITY_BINARY_PATH" -s exec --bind "${bind_str}" ${overlay_args} "${container_path}" "${cmd_to_run[@]}"
+    "$SINGULARITY_BINARY_PATH" -s exec --bind "${bind_str}" ${overlay_args} "${container_path}" "${cmd_to_run[@]}"
 }
 
 # Retry singularity exec command once
