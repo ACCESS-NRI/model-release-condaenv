@@ -19,4 +19,4 @@ dependencies:
   - um2nc
   - accessnri::yamanifest
   - netcdf4=*=nompi_*
-  - access-experiment-generator
+  - experiment-generator
