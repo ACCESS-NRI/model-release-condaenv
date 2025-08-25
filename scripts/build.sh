@@ -249,6 +249,7 @@ ln -s /opt/conda/"${FULLENV}" "${CONDA_OUTER_BASE}"/"${APPS_SUBDIR}"/"${CONDA_IN
 ### Can't use ${CONDA_SCRIPT_PATH} or "${CONDA_INSTALLATION_PATH}" due to the need to string match on those paths
 ### which they won't with the '/./' part required for arcane rsync magic
 construct_module_insert "${SINGULARITY_BINARY_PATH}" "${OVERLAY_BASE}" "${my_container}" "${BUILD_STAGE_DIR}"/"${FULLENV}".sqsh.tmp "${SCRIPT_DIR}"/condaenv.sh "${CONDA_INSTALLATION_PATH}" /opt/conda/"${FULLENV}" "${CONDA_BASE}"/"${SCRIPT_SUBDIR}"/"${FULLENV}".d/bin "${CONDA_OUTER_BASE}"/"${MODULE_SUBDIR}"/"${MODULE_NAME}"/."${MODULE_VERSION}"
+construct_launcher_insert "${SINGULARITY_BINARY_PATH}" "${OVERLAY_BASE}" "${my_container}" "${BUILD_STAGE_DIR}"/"${FULLENV}".sqsh.tmp "${SCRIPT_DIR}"/condaenv.sh "${CONDA_INSTALLATION_PATH}" /opt/conda/"${FULLENV}" "${CONDA_BASE}"/"${SCRIPT_SUBDIR}"/"${FULLENV}".d/bin "${CONDA_OUTER_BASE}"/"${SCRIPT_SUBDIR}"/"${FULLENV}".d/bin/launcher_activate.sh
 
 ### Set permissions on base environment
 set_apps_perms "${CONDA_OUTER_BASE}"
