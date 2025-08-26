@@ -1,0 +1,32 @@
+#%Module1.0
+
+set prefix __CONDA_BASE__/__APPS_SUBDIR__
+set package __CONDA_INSTALL_BASENAME__
+
+# Prevent running this module with a running payu module
+conflict payu
+
+# Name of this module's environment
+lassign [split [module-info name] {/}] module_name module_version
+if {[string match *-lite $module_version]} {
+    # Remove the '-lite' suffix for the conda environment name
+    set condaenv_version [string range $module_version 0 end-5]
+} else {
+    set condaenv_version $module_version
+}
+set basedir "$prefix/$package/envs/$condaenv_version"
+if {![ file exists $basedir ]} {
+    # For modulenames which are $ENVIRONMENT/$VERSION-lite, rather than conda/$ENIRONMENT-$VERSION-lite
+    set condaenv "${module_name}-${condaenv_version}"
+    set basedir "$prefix/$package/envs/$condaenv"
+}
+
+set myscripts [ file normalize __CONDA_BASE__/__SCRIPT_SUBDIR__/$condaenv-lite.d/bin ]
+set overlay_path [ string map {/conda/ /envs/} $basedir ].sqsh
+
+module load singularity
+
+prepend-path CONTAINER_OVERLAY_PATH $overlay_path
+
+# Add launcher script directory to PATH
+prepend-path PATH $myscripts

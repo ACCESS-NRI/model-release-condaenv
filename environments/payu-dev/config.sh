@@ -28,3 +28,14 @@ declare -a replace_from_apps=()
 declare -a outside_commands_to_include=( "pbs_tmrsh" )
 declare -a outside_files_to_copy=()
 declare -a replace_with_external=()
+
+declare -a launcher_commands=(
+    "payu-run"
+    "payu-collate"
+    "payu-sync"
+    "payu"
+    "payu-branch"
+    "payu-checkout"
+    "payu-clone"
+    "payu-profile"
+)

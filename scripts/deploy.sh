@@ -36,6 +36,9 @@ rsync --archive --verbose --partial --progress --one-file-system --itemize-chang
 
 echo "Make sure anything deleted from this environments scripts directory is also deleted from the prod copy"
 rsync --archive --verbose --partial --progress --one-file-system --itemize-changes --hard-links --acls --relative --delete -- "${CONDA_TEMP_PATH}"/"${APPS_SUBDIR}"/./"${CONDA_SCRIPTS_BASENAME}"/"${FULLENV}".d "${CONDA_BASE}"/"${APPS_SUBDIR}"
+if [ "${#launcher_commands[@]}" -gt 0 ]; then
+    rsync --archive --verbose --partial --progress --one-file-system --itemize-changes --hard-links --acls --relative --delete -- "${CONDA_TEMP_PATH}"/"${APPS_SUBDIR}"/./"${CONDA_SCRIPTS_BASENAME}"/"${FULLENV}"-lite.d "${CONDA_BASE}"/"${APPS_SUBDIR}"
+fi
 
 [[ -e "${CONDA_INSTALLATION_PATH}"/envs/"${FULLENV}".sqsh ]] && cp "${CONDA_INSTALLATION_PATH}"/envs/"${FULLENV}".sqsh "${ADMIN_DIR}"/"${FULLENV}".sqsh.bak
 mv "${BUILD_STAGE_DIR}"/"${FULLENV}".sqsh.tmp "${CONDA_INSTALLATION_PATH}"/envs/"${FULLENV}".sqsh
