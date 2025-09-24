@@ -10,7 +10,7 @@ dependencies:
     - git+https://github.com/payu-org/payu.git@master
   - f90nml
   - gh
-  - git==2.46.0
+  - git
   - nco
   - pytest
   - openssh==10.0p1
