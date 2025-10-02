@@ -172,6 +172,57 @@ function construct_module_insert() {
 
 }
 
+function construct_launcher_insert() {
+
+    singularity_exec="${1}"
+    overlay_path="${2}"
+    container_path="${3}"
+    squashfs_path="${4}"
+    env_script="${5}"
+    rootdir="${6}"
+    condaenv="${7}"
+    script_path="${8}"
+    module_path="${9}"
+
+    declare -a discard_paths=( "/bin" "/usr/bin" "/condabin" )
+    declare -a discard_vars=( "MODULEPATH" "_" "PWD" "SHLVL" )
+
+    while read line; do
+        key="${line%%=*}"
+        value="${line#*=}"
+        ### Skip these environment variables
+        in_array "${discard_vars[@]}" "${key}" && continue
+        ### Prepend to these variables
+        if [[ $key =~ .PATH$ ]]; then
+            echo $key=\"$value:\$$key\"
+            echo export $key=\"\$\{$key\%\:\}\"
+        ### Prepend to Modulefile variables that work like a path
+        elif in_array "_LMFILES_" "LOADEDMODULES" "${key}"; then
+            echo $key=\"$value:\$$key\"
+            echo export $key=\"\$\{$key\%\:\}\"
+        ### Treat path specially - remove system paths and retain order
+        elif [[ "${key}" == "PATH" ]]; then
+            while IFS= read -r -d: entry; do
+                in_array "${discard_paths[@]}" "${entry}" && continue
+                echo PATH=\"$entry:\$PATH\"
+                echo export PATH=\"\$\{PATH\%\:\}\"
+                echo SINGULARITYENV_PREPEND_PATH=\"$entry:\$SINGULARITYENV_PREPEND_PATH\"
+                echo export SINGULARITYENV_PREPEND_PATH=\"\$\{SINGULARITYENV_PREPEND_PATH\%\:\}\"
+            done<<<"${value%:}:"
+        elif [[ "${key}" =~ ^alias\  ]]; then
+            echo alias "${key//alias /}"=\"${value//\'/}\"
+        else
+            if [[ "${value}" ]]; then
+                echo export $key=\"$value\"
+            else
+                echo export $key=\"\"
+            fi
+        fi
+
+    done < <( "${singularity_exec}" -s exec --bind /etc,/half-root,/local,/ram,/run,/system,/usr,/var/lib/sss,/var/run/munge,/var/lib/rpm,"${overlay_path}":/g --overlay="${squashfs_path}"  "${container_path}" /bin/env -i "${env_script}" "${rootdir}" "${condaenv}" ) > "${module_path}"
+
+}
+
 function copy_and_replace() {
     ### Copies the file in $1 to the location in $2 and replaces any occurence
     ### of __${3}__, __${4}__... with the contents of those environment variables

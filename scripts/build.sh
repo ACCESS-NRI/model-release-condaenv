@@ -120,9 +120,10 @@ function inner() {
     done
     mkdir -p "${CONDA_MODULE_PATH}"
     copy_and_replace "${SCRIPT_DIR}"/../modules/common_v3 "${CONDA_MODULE_PATH}"/.common_v3       CONDA_BASE APPS_SUBDIR CONDA_INSTALL_BASENAME SCRIPT_SUBDIR
-    copy_and_replace "${SCRIPT_DIR}"/launcher_conf.sh "${CONDA_SCRIPT_PATH}"/launcher_conf.sh CONDA_BASE APPS_SUBDIR CONDA_INSTALL_BASENAME CONDA_SCRIPT_PATH FULLENV
+    copy_and_replace "${SCRIPT_DIR}"/../modules/common_cmd_v1 "${CONDA_MODULE_PATH}"/.common_cmd_v1       CONDA_BASE APPS_SUBDIR CONDA_INSTALL_BASENAME SCRIPT_SUBDIR
+    copy_and_replace "${SCRIPT_DIR}"/launcher_conf.sh "${CONDA_SCRIPT_PATH}"/launcher_conf.sh CONDA_BASE APPS_SUBDIR CONDA_INSTALL_BASENAME
 
-    ### Create symlink tree
+    ### Create symlink tree for full environment
     mkdir -p "${CONDA_SCRIPT_PATH}"/"${FULLENV}".d/{bin,overrides}
     cp "${CONDA_SCRIPT_PATH}"/{launcher.sh,launcher_conf.sh} "${CONDA_SCRIPT_PATH}"/"${FULLENV}".d/bin
     pushd "${CONDA_SCRIPT_PATH}"/"${FULLENV}".d/bin
@@ -142,6 +143,29 @@ function inner() {
         ln -s ${i}
     done
     popd
+
+    ### Create symlink tree for lite environment with limited launcher commands
+    if [ "${#launcher_commands[@]}" -gt 0 ]; then
+        mkdir -p "${CONDA_SCRIPT_PATH}"/"${FULLENV}"-lite.d/{bin,overrides}
+        cp "${CONDA_SCRIPT_PATH}"/{launcher.sh,launcher_conf.sh} "${CONDA_SCRIPT_PATH}"/"${FULLENV}"-lite.d/bin
+        pushd "${CONDA_SCRIPT_PATH}"/"${FULLENV}"-lite.d/bin
+        for cmd in "${launcher_commands[@]}"; do
+            ln -s launcher.sh $cmd
+        done
+
+        ### Add in the outside commands
+        for i in "${outside_commands_to_include[@]}"; do
+            ln -s launcher.sh $i
+        done
+        popd
+
+        ### Add in the override and config scripts
+        pushd "${CONDA_SCRIPT_PATH}"/"${FULLENV}-lite".d/overrides
+        for i in ../../overrides/*; do
+            ln -s ${i}
+        done
+        popd
+    fi
 
     if [[ -e "${SCRIPT_DIR}"/../environments/"${CONDA_ENVIRONMENT}"/build_inner.sh ]]; then
         source "${SCRIPT_DIR}"/../environments/"${CONDA_ENVIRONMENT}"/build_inner.sh
@@ -226,6 +250,9 @@ fi
 
 if [[ "${DO_UPDATE}" == "--install" ]]; then
     ln -s .common_v3 "${CONDA_OUTER_BASE}"/"${MODULE_SUBDIR}"/"${MODULE_NAME}"/"${MODULE_VERSION}"
+    if [ "${#launcher_commands[@]}" -gt 0 ]; then
+        ln -s .common_cmd_v1 "${CONDA_OUTER_BASE}"/"${MODULE_SUBDIR}"/"${MODULE_NAME}"/"${MODULE_VERSION}"-lite
+    fi
 fi
 
 pushd "${CONDA_TEMP_PATH}"
@@ -249,6 +276,10 @@ ln -s /opt/conda/"${FULLENV}" "${CONDA_OUTER_BASE}"/"${APPS_SUBDIR}"/"${CONDA_IN
 ### Can't use ${CONDA_SCRIPT_PATH} or "${CONDA_INSTALLATION_PATH}" due to the need to string match on those paths
 ### which they won't with the '/./' part required for arcane rsync magic
 construct_module_insert "${SINGULARITY_BINARY_PATH}" "${OVERLAY_BASE}" "${my_container}" "${BUILD_STAGE_DIR}"/"${FULLENV}".sqsh.tmp "${SCRIPT_DIR}"/condaenv.sh "${CONDA_INSTALLATION_PATH}" /opt/conda/"${FULLENV}" "${CONDA_BASE}"/"${SCRIPT_SUBDIR}"/"${FULLENV}".d/bin "${CONDA_OUTER_BASE}"/"${MODULE_SUBDIR}"/"${MODULE_NAME}"/."${MODULE_VERSION}"
+construct_launcher_insert "${SINGULARITY_BINARY_PATH}" "${OVERLAY_BASE}" "${my_container}" "${BUILD_STAGE_DIR}"/"${FULLENV}".sqsh.tmp "${SCRIPT_DIR}"/condaenv.sh "${CONDA_INSTALLATION_PATH}" /opt/conda/"${FULLENV}" "${CONDA_BASE}"/"${SCRIPT_SUBDIR}"/"${FULLENV}".d/bin "${CONDA_OUTER_BASE}"/"${SCRIPT_SUBDIR}"/"${FULLENV}".d/bin/launcher_activate.sh
+if [ "${#launcher_commands[@]}" -gt 0 ]; then
+    cp "${CONDA_OUTER_BASE}"/"${SCRIPT_SUBDIR}"/"${FULLENV}".d/bin/launcher_activate.sh "${CONDA_OUTER_BASE}"/"${SCRIPT_SUBDIR}"/"${FULLENV}"-lite.d/bin/launcher_activate.sh
+fi
 
 ### Set permissions on base environment
 set_apps_perms "${CONDA_OUTER_BASE}"
