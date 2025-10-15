@@ -216,8 +216,9 @@ Variables required for Build/Test/Deploy workflows:
 - `secrets.PAYU_TELEMETRY_CONFIG`: Sets environment variable for the Payu telemetry configuration path which is passed to the launcher script configuration. This means this environment variable is set every time the container runs.
 
 Additional variables required for Payu telemetry configuration workflow:
-- `secrets.PAYU_TELEMETRY_URL`: Url used for Payu telemetry requests. This will point to a persistent session.
+
+- `secrets.PAYU_TELEMETRY_URL`: URL used for Payu telemetry requests. This will point towards the ACCESS-NRI services payu telemetry endpoint.
 - `secrets.PAYU_TELEMETRY_TOKEN`: Token for the Payu telemetry requests.
-- `vars.PAYU_TELEMETRY_HOST`: Host for the Payu telemetry requests.
+- `vars.PAYU_TELEMETRY_PROXY_URL`: URL used to route telemetry requests via the persistent session proxy.
 - `vars.PAYU_TELEMETRY_SERVICE_NAME`: Name of the Payu service in ACCESS-NRI tracking services.
 - `vars.HOSTNAME`: Name of HPC environment to add to telemetry information.
