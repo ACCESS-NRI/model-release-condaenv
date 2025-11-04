@@ -11,8 +11,12 @@ dependencies:
   - git
   - nco
   - pytest
-  - openssh>=8.3
+  - openssh==10.0p1
+  - openssl==3.5.2
   - xarray
   - mule
   - um2nc
   - accessnri::yamanifest
+  - netcdf4=*=nompi_*
+  - experiment-generator
+  - experiment-runner
