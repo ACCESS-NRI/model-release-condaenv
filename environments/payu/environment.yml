@@ -20,3 +20,4 @@ dependencies:
   - netcdf4=*=nompi_*
   - experiment-generator
   - experiment-runner
+  - mnctools
