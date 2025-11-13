@@ -21,3 +21,4 @@ dependencies:
   - experiment-generator
   - experiment-runner
   - mnctools
+  - addmeta
