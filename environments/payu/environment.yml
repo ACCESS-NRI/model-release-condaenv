@@ -5,7 +5,7 @@ channels:
   - conda-forge
 dependencies:
   - python==3.10
-  - accessnri::payu==1.2.0
+  - accessnri::payu==1.2.1
   - f90nml
   - gh
   - git
