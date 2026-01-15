@@ -23,3 +23,4 @@ exception:
 - fontTools.ufoLib #
 - pandas.core._numba.kernels #
 - scipy._lib.array_api_compat.cupy #
+- backports.zstd._cffi # See https://github.com/ACCESS-NRI/model-release-condaenv/issues/47
