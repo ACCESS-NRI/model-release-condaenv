@@ -1,7 +1,6 @@
 name: payu-dev
 channels:
   - accessnri
-  - coecms
   - conda-forge
 dependencies:
   - python==3.10
