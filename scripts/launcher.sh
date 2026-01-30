@@ -172,33 +172,45 @@ function singularity_exec () {
     "$SINGULARITY_BINARY_PATH" -s exec --bind "${bind_str}" ${overlay_args} "${CONTAINER_PATH}" "${cmd_to_run[@]}"
 }
 
-# Retry singularity exec command once
-MAX_TRY=2
-for TRY in $(seq 1 $MAX_TRY); do
-    # Run the singularity exec command. Capture stderr for error handling
-    { error_msg=$(singularity_exec 2>&1 1>&$out); exit_code=$?; } {out}>&1
-    # Close additional file descriptor
-    {out}>&-
+# On login nodes, retry is set to 0 as not capturing stderr preserves interactive sessions
+# and it should be straight-forward to retry a command
+DEFAULT_MAX_RETRY=0
+if [[ -n "${PBS_JOBID}" ]]; then
+   # Default to one retry when running command on PBS jobs
+   DEFAULT_MAX_RETRY=1
+fi
 
-    # Write to stderr
-    echo "${error_msg}" 1>&2
+# Allow override from environment
+MAX_RETRY="${ENV_LAUNCHER_SCRIPT_MAX_RETRY:-${DEFAULT_MAX_RETRY}}"
 
-    if [[ $exit_code == 0 ]]; then
-        # Successful execution
+exit_code=0
+
+for ((attempt=0; attempt<=MAX_RETRY; attempt++)); do
+    last_attempt=$(( attempt == MAX_RETRY ))
+
+    if (( MAX_RETRY == 0 || last_attempt )); then
+        # Run command without capturing stderr
+        singularity_exec
+        exit_code=$?
         break
-    elif [[ $exit_code == 255 ]] && [[ $error_msg =~ "container creation failed" ]]; then
-        # Transient container failure with error code 255: Retry
-        echo "Singularity invocation attempt ${TRY} failed."
-
-        if [[ $TRY < $MAX_TRY ]]; then
-            echo "Re-trying singularity invocation."
-        else
-            echo "Maximum number of ${MAX_TRY} singularity invocation attempts reached. Exiting."
-            exit $exit_code
-        fi
-
     else
-        # Other error: Exit normally
-        exit $exit_code
+        # Run the singularity exec command. Capture stderr for error handling
+        { error_msg=$(singularity_exec 2>&1 1>&$out); exit_code=$?; } {out}>&1
+        # Close additional file descriptor
+        {out}>&-
+
+        # Write to stderr
+        echo "${error_msg}" 1>&2
+
+        if [[ $exit_code == 255 ]] && [[ $error_msg =~ "container creation failed" ]]; then
+            # Transient container failure with error code 255: Retry
+            echo "Singularity invocation attempt ${attempt} failed." >&2
+            echo "Re-trying singularity invocation." >&2
+        else
+            # Do not retry when successful execution and other errors occurred
+            break
+        fi
     fi
 done
+
+exit $exit_code
