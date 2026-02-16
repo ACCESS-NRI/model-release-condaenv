@@ -175,20 +175,18 @@ function singularity_exec () {
 # On login nodes, retry is set to 0 as not capturing stderr preserves interactive sessions
 # and it should be straight-forward to retry a command
 DEFAULT_MAX_RETRY=0
-if [[ -n "${PBS_JOBID}" ]]; then
+if [[ -n "$PBS_JOBID" ]]; then
    # Default to one retry when running command on PBS jobs
    DEFAULT_MAX_RETRY=1
 fi
 
 # Allow override from environment
-MAX_RETRY="${ENV_LAUNCHER_SCRIPT_MAX_RETRY:-${DEFAULT_MAX_RETRY}}"
+MAX_ATTEMPTS=$(( 1 + ${ENV_LAUNCHER_SCRIPT_MAX_RETRY:-$DEFAULT_MAX_RETRY} ))
 
 exit_code=0
 
-for ((attempt=0; attempt<=MAX_RETRY; attempt++)); do
-    last_attempt=$(( attempt == MAX_RETRY ))
-
-    if (( MAX_RETRY == 0 || last_attempt )); then
+for attempt in $(seq 1 $MAX_ATTEMPTS); do 
+    if [ attempt -eq $MAX_ATTEMPTS ]; then
         # Run command without capturing stderr
         singularity_exec
         exit_code=$?
@@ -200,11 +198,11 @@ for ((attempt=0; attempt<=MAX_RETRY; attempt++)); do
         {out}>&-
 
         # Write to stderr
-        echo "${error_msg}" 1>&2
+        echo "$error_msg" >&2
 
-        if [[ $exit_code == 255 ]] && [[ $error_msg =~ "container creation failed" ]]; then
+        if [[ $exit_code == 255 && "$error_msg" == *'container creation failed'* ]]; then
             # Transient container failure with error code 255: Retry
-            echo "Singularity invocation attempt ${attempt} failed." >&2
+            echo "Singularity invocation attempt $attempt failed." >&2
             echo "Re-trying singularity invocation." >&2
         else
             # Do not retry when successful execution and other errors occurred
