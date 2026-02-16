@@ -1,5 +1,11 @@
 #!/usr/bin/env bash
 
+# Validation check for retry environment variable
+if [[ -n "$ENV_LAUNCHER_SCRIPT_MAX_RETRY" && ! $ENV_LAUNCHER_SCRIPT_MAX_RETRY =~ ^[0-9]+$ ]]; then
+    echo "Env variable 'ENV_LAUNCHER_SCRIPT_MAX_RETRY' must be a non-negative integer." >&2
+    exit 1
+fi
+
 function in_array() {
     ### Assumes first n-1 args are an array and final arg is the string to search for
     ### Necessary because [[ libab =~ liba ]] returns true
@@ -183,10 +189,8 @@ fi
 # Allow override from environment
 MAX_ATTEMPTS=$(( 1 + ${ENV_LAUNCHER_SCRIPT_MAX_RETRY:-$DEFAULT_MAX_RETRY} ))
 
-exit_code=0
-
 for attempt in $(seq 1 $MAX_ATTEMPTS); do 
-    if [ attempt -eq $MAX_ATTEMPTS ]; then
+    if [ "$attempt" -eq $MAX_ATTEMPTS ]; then
         # Run command without capturing stderr
         singularity_exec
         exit_code=$?
