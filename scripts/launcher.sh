@@ -78,7 +78,7 @@ done
 $debug "PROG_ARGS =" "${PROG_ARGS[@]}"
 
 if ! [[ "${SINGULARITY_BINARY_PATH}" ]]; then
-    module load singularity
+    module load apptainer
     export SINGULARITY_BINARY_PATH=$( type -p singularity )
 fi
 
@@ -114,10 +114,10 @@ $debug "CONTAINER_OVERLAY_PATH after override check = " ${CONTAINER_OVERLAY_PATH
 
 export CONDA_BASE="${CONDA_BASE_ENV_PATH}/envs/${myenv}"
 
-if ! [[ -x "${SINGULARITY_BINARY_PATH}" ]]; then
-    ### Short circuit detection
+if [[ $(awk '/NoNewPrivs/ {print $2}' /proc/self/status) -ne 0 ]]; then
+    ### Short circuit detection - check process status (0 if running out outside a container)
     ### In some cases (e.g. mpi processes launched from orterun), launcher will be invoked from
-    ### within the container. The tell-tale sign for this is if /opt/singularity is missing.
+    ### within the container. 
     ### The only way this can happen is if we've tried to run something that has come
     ### from the bin directory in scripts/env.d/bin/ - the only place these can come from is the
     ### bin directory of the active conda env, so just reset the path to that but keep the 
@@ -144,7 +144,7 @@ declare -a singularity_default_path=( '/usr/local/sbin' '/usr/local/bin' '/usr/s
 
 while IFS= read -r -d: i; do
     in_array "${singularity_default_path[@]}" "${i}" && continue
-    [[ "${i}" == "/opt/singularity/bin" ]] && continue
+    [[ "${i}" == "/opt/nci/apptainer/bin" ]] && continue
     [[ "${i}" == "${wrapper_bin}" ]] && continue
     SINGULARITYENV_PREPEND_PATH="${SINGULARITYENV_PREPEND_PATH}:${i}"
 done<<<"${PATH%:}:"

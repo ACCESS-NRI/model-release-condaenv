@@ -57,7 +57,7 @@ fi
 export TEST_OUT_FILE=test_results.xml
 export PYTHONNOUSERSITE=true
 export CONTAINER_PATH="${SCRIPT_DIR}"/../container/base.sif
-export SINGULARITY_BINARY_PATH="/opt/singularity/bin/singularity"
+export SINGULARITY_BINARY_PATH="/opt/nci/apptainer/bin/singularity"
 
 declare -a bind_dirs=( "/etc" "/half-root" "/local" "/ram" "/run" "/system" "/usr" "/var/lib/sss" "/var/lib/rpm" "/var/run/munge" "/sys/fs/cgroup" "/iointensive" )
 
