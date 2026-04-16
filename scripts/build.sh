@@ -119,7 +119,7 @@ function inner() {
         copy_if_changed "${override}" "${CONDA_SCRIPT_PATH}"/overrides/"${override##*/}"
     done
     mkdir -p "${CONDA_MODULE_PATH}"
-    copy_and_replace "${SCRIPT_DIR}"/../modules/common_v3 "${CONDA_MODULE_PATH}"/.common_v3       CONDA_BASE APPS_SUBDIR CONDA_INSTALL_BASENAME SCRIPT_SUBDIR
+    copy_and_replace "${SCRIPT_DIR}"/../modules/"${COMMON_MODULEFILE}" "${CONDA_MODULE_PATH}"/."${COMMON_MODULEFILE}"       CONDA_BASE APPS_SUBDIR CONDA_INSTALL_BASENAME SCRIPT_SUBDIR
     copy_and_replace "${SCRIPT_DIR}"/launcher_conf.sh "${CONDA_SCRIPT_PATH}"/launcher_conf.sh CONDA_BASE APPS_SUBDIR CONDA_INSTALL_BASENAME CONDA_SCRIPT_PATH FULLENV PAYU_TELEMETRY_CONFIG
 
     ### Create symlink tree
@@ -225,7 +225,7 @@ fi
 
 
 if [[ "${DO_UPDATE}" == "--install" ]]; then
-    ln -s .common_v3 "${CONDA_OUTER_BASE}"/"${MODULE_SUBDIR}"/"${MODULE_NAME}"/"${MODULE_VERSION}"
+    ln -s ."${COMMON_MODULEFILE}" "${CONDA_OUTER_BASE}"/"${MODULE_SUBDIR}"/"${MODULE_NAME}"/"${MODULE_VERSION}"
 fi
 
 pushd "${CONDA_TEMP_PATH}"
