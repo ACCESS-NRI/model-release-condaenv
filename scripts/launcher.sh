@@ -114,8 +114,8 @@ $debug "CONTAINER_OVERLAY_PATH after override check = " ${CONTAINER_OVERLAY_PATH
 
 export CONDA_BASE="${CONDA_BASE_ENV_PATH}/envs/${myenv}"
 
-if [[ $(awk '/NoNewPrivs/ {print $2}' /proc/self/status) -ne 0 ]]; then
-    ### Short circuit detection - check process status (0 if running out outside a container)
+if [[ -n "$APPTAINER_CONTAINER" ]]; then
+    ### Short circuit detection - check if APPTAINER_CONTAINER environment var is non-empty
     ### In some cases (e.g. mpi processes launched from orterun), launcher will be invoked from
     ### within the container. 
     ### The only way this can happen is if we've tried to run something that has come
