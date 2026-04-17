@@ -134,7 +134,7 @@ function construct_module_insert() {
     module_path="${9}"
 
     declare -a discard_paths=( "/bin" "/usr/bin" "/condabin" )
-    declare -a discard_vars=( "MODULEPATH" "_" "PWD" "SHLVL" )
+    declare -a discard_vars=( "MODULEPATH" "_" "PWD" "SHLVL" "MAMBA_ROOT_PREFIX")
 
     while read line; do
         key="${line%%=*}"
