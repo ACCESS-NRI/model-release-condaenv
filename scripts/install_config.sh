@@ -37,6 +37,9 @@ export CONDA_INSTALL_BASENAME="base_conda" #TODO: Eventually replace with conda
 # so payu modules are named payu/$MODULE_VERSION (e.g. payu/1.1.5)
 export MODULE_NAME="conda"
 
+# Common modulefile to use for conda environments
+export COMMON_MODULEFILE="common_v4"
+
 ### Derived locations - extra '.' for arcane rsync magic
 export CONDA_SCRIPT_PATH="${CONDA_BASE}"/./"${SCRIPT_SUBDIR}"
 export CONDA_MODULE_PATH="${CONDA_BASE}"/./"${MODULE_SUBDIR}"/"${MODULE_NAME}"
@@ -57,7 +60,7 @@ fi
 export TEST_OUT_FILE=test_results.xml
 export PYTHONNOUSERSITE=true
 export CONTAINER_PATH="${SCRIPT_DIR}"/../container/base.sif
-export SINGULARITY_BINARY_PATH="/opt/singularity/bin/singularity"
+export SINGULARITY_BINARY_PATH="/opt/nci/apptainer/bin/singularity"
 
 declare -a bind_dirs=( "/etc" "/half-root" "/local" "/ram" "/run" "/system" "/usr" "/var/lib/sss" "/var/lib/rpm" "/var/run/munge" "/sys/fs/cgroup" "/iointensive" )
 

@@ -1,11 +1,5 @@
 #!/usr/bin/env bash
 
-# Validation check for retry environment variable
-if [[ -n "$ENV_LAUNCHER_SCRIPT_MAX_RETRY" && ! $ENV_LAUNCHER_SCRIPT_MAX_RETRY =~ ^[0-9]+$ ]]; then
-    echo "Env variable 'ENV_LAUNCHER_SCRIPT_MAX_RETRY' must be a non-negative integer." >&2
-    exit 1
-fi
-
 function in_array() {
     ### Assumes first n-1 args are an array and final arg is the string to search for
     ### Necessary because [[ libab =~ liba ]] returns true
@@ -78,7 +72,7 @@ done
 $debug "PROG_ARGS =" "${PROG_ARGS[@]}"
 
 if ! [[ "${SINGULARITY_BINARY_PATH}" ]]; then
-    module load singularity
+    module load apptainer
     export SINGULARITY_BINARY_PATH=$( type -p singularity )
 fi
 
@@ -114,10 +108,10 @@ $debug "CONTAINER_OVERLAY_PATH after override check = " ${CONTAINER_OVERLAY_PATH
 
 export CONDA_BASE="${CONDA_BASE_ENV_PATH}/envs/${myenv}"
 
-if ! [[ -x "${SINGULARITY_BINARY_PATH}" ]]; then
-    ### Short circuit detection
+if [[ -n "$APPTAINER_CONTAINER" ]]; then
+    ### Short circuit detection - check if APPTAINER_CONTAINER environment var is non-empty
     ### In some cases (e.g. mpi processes launched from orterun), launcher will be invoked from
-    ### within the container. The tell-tale sign for this is if /opt/singularity is missing.
+    ### within the container. 
     ### The only way this can happen is if we've tried to run something that has come
     ### from the bin directory in scripts/env.d/bin/ - the only place these can come from is the
     ### bin directory of the active conda env, so just reset the path to that but keep the 
@@ -144,7 +138,7 @@ declare -a singularity_default_path=( '/usr/local/sbin' '/usr/local/bin' '/usr/s
 
 while IFS= read -r -d: i; do
     in_array "${singularity_default_path[@]}" "${i}" && continue
-    [[ "${i}" == "/opt/singularity/bin" ]] && continue
+    [[ "${i}" == "/opt/nci/apptainer/bin" ]] && continue
     [[ "${i}" == "${wrapper_bin}" ]] && continue
     SINGULARITYENV_PREPEND_PATH="${SINGULARITYENV_PREPEND_PATH}:${i}"
 done<<<"${PATH%:}:"
@@ -173,46 +167,6 @@ export SINGULARITYENV_PYTHONNOUSERSITE="x"
 # Disable Python's bytecode cache inside the container
 export SINGULARITYENV_PYTHONDONTWRITEBYTECODE="1"
 
-function singularity_exec () {
-    $debug "Singularity invocation: " "$SINGULARITY_BINARY_PATH" -s exec --bind "${bind_str}" ${overlay_args} "${CONTAINER_PATH}" "${cmd_to_run[@]}"
-    "$SINGULARITY_BINARY_PATH" -s exec --bind "${bind_str}" ${overlay_args} "${CONTAINER_PATH}" "${cmd_to_run[@]}"
-}
 
-# On login nodes, retry is set to 0 as not capturing stderr preserves interactive sessions
-# and it should be straight-forward to retry a command
-DEFAULT_MAX_RETRY=0
-if [[ -n "$PBS_JOBID" ]]; then
-   # Default to one retry when running command on PBS jobs
-   DEFAULT_MAX_RETRY=1
-fi
-
-# Allow override from environment
-MAX_ATTEMPTS=$(( 1 + ${ENV_LAUNCHER_SCRIPT_MAX_RETRY:-$DEFAULT_MAX_RETRY} ))
-
-for attempt in $(seq 1 $MAX_ATTEMPTS); do 
-    if [ "$attempt" -eq $MAX_ATTEMPTS ]; then
-        # Run command without capturing stderr
-        singularity_exec
-        exit_code=$?
-        break
-    else
-        # Run the singularity exec command. Capture stderr for error handling
-        { error_msg=$(singularity_exec 2>&1 1>&$out); exit_code=$?; } {out}>&1
-        # Close additional file descriptor
-        {out}>&-
-
-        # Write to stderr
-        echo "$error_msg" >&2
-
-        if [[ $exit_code == 255 && "$error_msg" == *'container creation failed'* ]]; then
-            # Transient container failure with error code 255: Retry
-            echo "Singularity invocation attempt $attempt failed." >&2
-            echo "Re-trying singularity invocation." >&2
-        else
-            # Do not retry when successful execution and other errors occurred
-            break
-        fi
-    fi
-done
-
-exit $exit_code
+$debug "Singularity invocation: " "$SINGULARITY_BINARY_PATH" -s exec --bind "${bind_str}" ${overlay_args} "${CONTAINER_PATH}" "${cmd_to_run[@]}"
+"$SINGULARITY_BINARY_PATH" -s exec --bind "${bind_str}" ${overlay_args} "${CONTAINER_PATH}" "${cmd_to_run[@]}"

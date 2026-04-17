@@ -1,5 +1,5 @@
 ### Subject to change
-export SINGULARITY_BINARY_PATH="/opt/singularity/bin/singularity"
+export SINGULARITY_BINARY_PATH="/opt/nci/apptainer/bin/singularity"
 export CONTAINER_PATH="__CONDA_BASE__/__APPS_SUBDIR__/__CONDA_INSTALL_BASENAME__/etc/base.sif"
 
 export CONDA_BASE_ENV_PATH="__CONDA_BASE__/__APPS_SUBDIR__/__CONDA_INSTALL_BASENAME__"
