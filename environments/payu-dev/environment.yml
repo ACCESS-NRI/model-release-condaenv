@@ -12,7 +12,7 @@ dependencies:
   - pytest
   - xarray
   - mule
-  - um2nc
+  - um2nc<2.0.0
   - accessnri::yamanifest
   - netcdf4=*=nompi_*
   - experiment-generator
