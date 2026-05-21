@@ -12,6 +12,7 @@ skip:
  - scipy._lib.array_api_compat.torch ### Don't support pytorch
  - urllib3.contrib.emscripten ### Used for web browser integration and also experimental: https://urllib3.readthedocs.io/en/latest/reference/contrib/emscripten.html
  - prompt_toolkit.contrib.ssh # Imports dev dependencies such as asyncssh
+ - pip._vendor.urllib3.contrib.emscripten # Imports js
 
 # Preload these modules before testing to avoid weird python issues
 preload:
