@@ -1,5 +1,9 @@
 # Containerised Conda Environments
 
+> [!NOTE]
+> Payu environments are now being deployed in the new [ACCESS-NRI/containerised-environments-infra](https://github.com/ACCESS-NRI/containerised-environments-infra) repository.
+
+
 ## Overview
 
 This repository is forked from [CMS Containerised Conda environments](https://github.com/coecms/cms-conda-singularity)
